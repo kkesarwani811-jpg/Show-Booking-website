@@ -1,0 +1,165 @@
+﻿<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Digital Ticket - CineHub</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>tailwind.config = { darkMode: 'class' }</script>
+    <!-- QRCode.js Library for generating scannable QR codes -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+    <!-- html2canvas for Download Ticket feature -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <style>body { font-family: 'Plus Jakarta Sans', sans-serif; }</style>
+</head>
+<body class="min-h-screen bg-slate-950 text-slate-100 flex flex-col items-center justify-center p-6">
+
+    <!-- Header -->
+    <header class="absolute top-0 left-0 w-full px-8 py-4 flex items-center justify-between border-b border-slate-900 bg-slate-950/80 backdrop-blur-md">
+        <a href="/" class="text-xl font-black text-[#b8000b] flex items-center gap-2">
+            <i class="fa-solid fa-film"></i><span>CineHub</span>
+        </a>
+        <a href="/" class="text-slate-400 hover:text-white text-xs font-bold flex items-center gap-2">
+            <i class="fa-solid fa-house"></i> Home
+        </a>
+    </header>
+
+    <!-- Main Ticket Wrapper -->
+    <main class="max-w-md w-full space-y-6 pt-12">
+        
+        <div class="text-center space-y-1">
+            <div class="w-12 h-12 rounded-full bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 flex items-center justify-center text-xl mx-auto mb-2 shadow-lg">
+                <i class="fa-solid fa-check"></i>
+            </div>
+            <h2 class="text-2xl font-black text-white">Booking Successful!</h2>
+            <p class="text-xs text-slate-400">Your digital pass is ready for cinema entry</p>
+        </div>
+
+        <!-- THE PREMIUM DIGITAL TICKET CARD -->
+        <div id="digital-ticket-card" class="bg-gradient-to-b from-slate-900 to-slate-950 border border-slate-800 rounded-3xl p-6 shadow-2xl relative overflow-hidden text-slate-100 space-y-6">
+            
+            <!-- Ticket Header -->
+            <div class="flex items-center justify-between border-b border-slate-800 pb-4">
+                <div class="flex items-center gap-2">
+                    <div class="w-8 h-8 rounded-lg bg-[#b8000b] text-white flex items-center justify-center font-black text-xs">CH</div>
+                    <span class="font-black tracking-widest text-sm text-white">CINEHUB PASS</span>
+                </div>
+                <span class="text-[10px] font-extrabold bg-emerald-950/80 border border-emerald-800 text-emerald-400 px-3 py-1 rounded-full uppercase tracking-wider">CONFIRMED</span>
+            </div>
+
+            <!-- Movie Title -->
+            <div class="space-y-1">
+                <h3 id="ticket-movie-title" class="text-2xl font-black tracking-tight text-white uppercase">Dune: Part Two</h3>
+                <p id="ticket-theater" class="text-xs text-slate-400 font-medium">CineHub IMAX, Mumbai</p>
+            </div>
+
+            <!-- Grid Metadata (Screen, Showtime, Seats) -->
+            <div class="grid grid-cols-3 gap-4 bg-slate-950/60 p-4 rounded-2xl border border-slate-800/80 text-center">
+                <div>
+                    <span class="text-[10px] font-bold text-slate-500 uppercase block">Screen</span>
+                    <span class="text-sm font-black text-white">04</span>
+                </div>
+                <div>
+                    <span class="text-[10px] font-bold text-slate-500 uppercase block">Showtime</span>
+                    <span id="ticket-time" class="text-sm font-black text-white">07:00 PM</span>
+                </div>
+                <div>
+                    <span class="text-[10px] font-bold text-slate-500 uppercase block">Seats</span>
+                    <span id="ticket-seats" class="text-sm font-black text-rose-500">F7, F8</span>
+                </div>
+            </div>
+
+            <!-- QR Code Section -->
+            <div class="flex flex-col items-center justify-center pt-2 space-y-3">
+                <div id="qrcode-box" class="bg-white p-3 rounded-2xl shadow-inner flex items-center justify-center"></div>
+                <p id="ticket-booking-ref" class="text-xs font-mono font-bold text-slate-400 tracking-widest">BOOKING #CP82931</p>
+            </div>
+
+            <!-- Decorative Ticket Notches -->
+            <div class="absolute -left-4 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-slate-950 border border-slate-800"></div>
+            <div class="absolute -right-4 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-slate-950 border border-slate-800"></div>
+        </div>
+
+        <!-- ACTION BUTTONS GRID -->
+        <div class="grid grid-cols-2 gap-3">
+            <button onclick="downloadTicketCard()" class="bg-slate-900 hover:bg-slate-800 border border-slate-800 text-slate-200 font-bold py-3 px-4 rounded-2xl text-xs transition flex items-center justify-center gap-2 cursor-pointer">
+                <i class="fa-solid fa-download text-rose-500"></i> Download Ticket
+            </button>
+            <button onclick="addToCalendar()" class="bg-slate-900 hover:bg-slate-800 border border-slate-800 text-slate-200 font-bold py-3 px-4 rounded-2xl text-xs transition flex items-center justify-center gap-2 cursor-pointer">
+                <i class="fa-solid fa-calendar-plus text-rose-500"></i> Add to Calendar
+            </button>
+            <button onclick="shareTicket()" class="col-span-2 bg-[#b8000b] hover:bg-[#a0000a] text-white font-extrabold py-3.5 px-4 rounded-2xl text-xs transition shadow-lg flex items-center justify-center gap-2 cursor-pointer">
+                <i class="fa-solid fa-share-nodes"></i> Share Ticket Pass
+            </button>
+        </div>
+
+        <div class="text-center pt-2">
+            <a href="/booking-history" class="text-xs text-slate-400 hover:text-white underline font-bold">View All My Bookings</a>
+        </div>
+    </main>
+
+    <!-- Script to Populate Dynamic Ticket Details -->
+    <script>
+        const urlParams = new URLSearchParams(window.location.search);
+        const bookingId = urlParams.get('booking_id') || 'CP82931';
+        const movieTitle = urlParams.get('movie') || 'Dune: Part Two';
+        const seats = urlParams.get('seats') || 'F7, F8';
+        const showTime = urlParams.get('time') || '07:00 PM';
+        const theater = urlParams.get('theater') || 'CineHub IMAX, Mumbai';
+
+        document.addEventListener('DOMContentLoaded', () => {
+            document.getElementById('ticket-movie-title').innerText = movieTitle;
+            document.getElementById('ticket-theater').innerText = theater;
+            document.getElementById('ticket-time').innerText = showTime;
+            document.getElementById('ticket-seats').innerText = seats;
+            document.getElementById('ticket-booking-ref').innerText = `BOOKING #${bookingId}`;
+
+            // Generate QR Code
+            new QRCode(document.getElementById("qrcode-box"), {
+                text: `CINEHUB-TICKET-REF-${bookingId}-SEATS-${seats}`,
+                width: 120,
+                height: 120,
+                colorDark : "#050505",
+                colorLight : "#ffffff",
+                correctLevel : QRCode.CorrectLevel.H
+            });
+        });
+
+        function downloadTicketCard() {
+            const ticketElement = document.getElementById('digital-ticket-card');
+            html2canvas(ticketElement, { backgroundColor: '#090d16', scale: 2 }).then(canvas => {
+                const link = document.createElement('a');
+                link.download = `CineHub-Ticket-${bookingId}.png`;
+                link.href = canvas.toDataURL('image/png');
+                link.click();
+            });
+        }
+
+        function addToCalendar() {
+            const title = encodeURIComponent(`Movie: ${movieTitle} at CineHub`);
+            const details = encodeURIComponent(`Seats: ${seats} | Booking ID: #${bookingId}`);
+            const location = encodeURIComponent(theater);
+            
+            // Generate standard Google Calendar URL
+            const calendarUrl = `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${title}&details=${details}&location=${location}`;
+            window.open(calendarUrl, '_blank');
+        }
+
+        function shareTicket() {
+            if (navigator.share) {
+                navigator.share({
+                    title: 'CineHub Movie Ticket',
+                    text: `I just booked tickets for ${movieTitle} (${seats}) at CineHub!`,
+                    url: window.location.href,
+                }).catch(() => {});
+            } else {
+                navigator.clipboard.writeText(window.location.href);
+                alert("📋 Ticket link copied to clipboard!");
+            }
+        }
+    </script>
+</body>
+</html>

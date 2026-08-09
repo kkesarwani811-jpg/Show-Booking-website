@@ -1,0 +1,106 @@
+﻿<!DOCTYPE html>
+<html lang="en" class="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Search Results - CineHub</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>tailwind.config = { darkMode: 'class' }</script>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <script>
+        if (localStorage.getItem('theme') === 'dark' || (!('theme' in localStorage) && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+            document.documentElement.classList.add('dark');
+        } else {
+            document.documentElement.classList.remove('dark');
+        }
+    </script>
+    <style>body { font-family: 'Plus Jakarta Sans', sans-serif; }</style>
+</head>
+<body class="min-h-screen flex flex-col bg-slate-50 dark:bg-slate-900 text-slate-900 dark:text-slate-100 transition-colors duration-300">
+
+    <!-- Header / Navbar -->
+    <header class="bg-white dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700 sticky top-0 z-40 px-6 py-3 shadow-sm">
+        <div class="flex items-center justify-between max-w-[1280px] mx-auto gap-4">
+            <a href="/" class="text-2xl font-extrabold text-[#b8000b] flex items-center gap-2">
+                <i class="fa-solid fa-film"></i><span>CineHub</span>
+            </a>
+
+            <!-- Search Form on Search Page -->
+            <form action="/search" method="GET" class="hidden md:flex flex-1 max-w-md mx-4 relative items-center">
+                <button type="submit" class="absolute left-3.5 text-slate-400 hover:text-[#b8000b]">
+                    <i class="fa-solid fa-magnifying-glass text-sm"></i>
+                </button>
+                <input type="text" name="q" id="search-input" placeholder="Search another movie..." 
+                       class="w-full pl-10 pr-10 py-2 rounded-full bg-slate-100 dark:bg-slate-700 text-slate-900 dark:text-slate-100 text-sm outline-none">
+            </form>
+
+            <a href="/" class="text-slate-600 dark:text-slate-300 hover:text-[#b8000b] font-bold text-sm flex items-center gap-2">
+                <i class="fa-solid fa-arrow-left"></i> Back to Home
+            </a>
+        </div>
+    </header>
+
+    <!-- Main Search Content -->
+    <main class="flex-1 max-w-[1280px] w-full mx-auto px-4 md:px-8 py-8 space-y-6">
+        <div class="flex items-center justify-between border-b border-slate-200 dark:border-slate-700 pb-4">
+            <div>
+                <h2 class="text-3xl font-extrabold text-slate-900 dark:text-slate-100">Search Results</h2>
+                <p class="text-sm text-slate-500 dark:text-slate-400 mt-1">Showing movies matching: <span id="query-display" class="font-bold text-[#b8000b]">""</span></p>
+            </div>
+        </div>
+
+        <!-- Movie Grid -->
+        <div id="results-grid" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-4 md:gap-6 pt-2">
+            <div class="col-span-full text-center py-12 text-slate-400 font-bold">Searching movie catalog...</div>
+        </div>
+    </main>
+
+    <footer class="bg-slate-200 dark:bg-slate-800 border-t border-slate-300 dark:border-slate-700 py-6 text-center text-xs text-slate-600 dark:text-slate-400 mt-auto">
+        © 2026 CineHub. All Rights Reserved.
+    </footer>
+
+    <script>
+        const urlParams = new URLSearchParams(window.location.search);
+        const searchQuery = urlParams.get('q') ? urlParams.get('q').trim().toLowerCase() : '';
+
+        document.addEventListener('DOMContentLoaded', () => {
+            document.getElementById('query-display').innerText = searchQuery ? `"${searchQuery}"` : 'All Movies';
+            if(searchQuery) document.getElementById('search-input').value = searchQuery;
+
+            fetch('/api/movies')
+                .then(r => r.json())
+                .then(movies => {
+                    const grid = document.getElementById('results-grid');
+                    const filtered = searchQuery 
+                        ? movies.filter(m => (m.title && m.title.toLowerCase().includes(searchQuery)) || (m.genre && m.genre.toLowerCase().includes(searchQuery)))
+                        : movies;
+
+                    if (filtered.length === 0) {
+                        grid.innerHTML = `
+                            <div class="col-span-full text-center py-16">
+                                <i class="fa-solid fa-film text-4xl text-slate-300 dark:text-slate-600 mb-3"></i>
+                                <h3 class="text-lg font-bold text-slate-700 dark:text-slate-300">No movies found</h3>
+                                <p class="text-xs text-slate-400 mt-1">Try searching for a different title or genre like "Action", "Sci-Fi", or "Avatar"</p>
+                            </div>`;
+                        return;
+                    }
+
+                    grid.innerHTML = filtered.map(m => `
+                        <div class="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 p-3 shadow-sm flex flex-col justify-between">
+                            <div class="relative w-full aspect-[2/3] rounded-xl overflow-hidden mb-2">
+                                <img src="${m.poster_url}" class="w-full h-full object-cover cursor-pointer" onclick="window.location.href='/pick-showtime?movie_id=${m.movie_id}'">
+                            </div>
+                            <h4 class="font-bold text-sm truncate text-slate-900 dark:text-slate-100">${m.title}</h4>
+                            <p class="text-[11px] text-slate-500 dark:text-slate-400 truncate mb-2">${m.genre}</p>
+                            <button onclick="window.location.href='/pick-showtime?movie_id=${m.movie_id}'" class="w-full bg-[#b8000b] hover:bg-[#a0000a] text-white text-xs font-bold py-2 rounded-xl transition">
+                                Book Tickets
+                            </button>
+                        </div>
+                    `).join('');
+                });
+        });
+    </script>
+</body>
+</html>

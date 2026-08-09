@@ -1,0 +1,302 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Movie Details - CineHub</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        body { font-family: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif; background-color: #f9f9fb; color: #1a1c1d; }
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+        .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col bg-slate-50 text-slate-900">
+
+    <!-- Header / Navbar -->
+    <header class="bg-white border-b border-slate-200 px-6 py-4 flex items-center justify-between shadow-sm sticky top-0 z-50">
+        <a href="/" class="flex items-center gap-3">
+            <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-rose-600 to-amber-500 flex items-center justify-center text-white font-extrabold text-xl shadow-md">CH</div>
+            <h1 class="text-2xl font-bold tracking-tight text-slate-900">CineHub</h1>
+        </a>
+        <a href="/" class="text-slate-600 hover:text-[#b8000b] font-bold text-sm flex items-center gap-2">
+            <i class="fa-solid fa-arrow-left"></i> Back to Movies
+        </a>
+    </header>
+
+    <!-- Main Container -->
+    <main class="flex-1 max-w-5xl w-full mx-auto px-4 sm:px-6 py-8">
+        <div id="movie-details-content" class="space-y-10">
+            <div class="text-center py-12 text-slate-400 font-semibold">Loading movie details...</div>
+        </div>
+    </main>
+
+    <!-- Footer -->
+    <footer class="bg-[#e8e8ea] border-t border-gray-300 w-full mt-auto py-6 text-center text-xs text-gray-500">
+        © 2026 CineHub. All Rights Reserved.
+    </footer>
+
+    <script>
+        const movieId = {{ movie_id }};
+
+        document.addEventListener('DOMContentLoaded', () => {
+            fetch(`/api/movies/${movieId}`)
+                .then(res => res.json())
+                .then(movie => {
+                    if (movie.error) {
+                        document.getElementById('movie-details-content').innerHTML = `<div class="text-center py-12 text-rose-600 font-bold">Movie not found!</div>`;
+                        return;
+                    }
+
+                    fetch(`/api/movies/${movieId}/reviews`)
+                        .then(r => r.json())
+                        .then(reviews => {
+                            renderMovieDetails(movie, reviews);
+                        })
+                        .catch(() => renderMovieDetails(movie, []));
+                })
+                .catch(err => console.error('Error fetching movie details:', err));
+        });
+
+        function renderMovieDetails(movie, reviews) {
+            const castList = [
+                { name: "Tom Holland", role: "as Peter Parker / Spider-Man", img: "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=300&auto=format&fit=crop&q=80" },
+                { name: "Zendaya", role: "as MJ", img: "https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=300&auto=format&fit=crop&q=80" },
+                { name: "Sadie Sink", role: "Actor", img: "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=300&auto=format&fit=crop&q=80" },
+                { name: "Jacob Batalon", role: "as Ned Leeds", img: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=300&auto=format&fit=crop&q=80" },
+                { name: "Jon Bernthal", role: "as Frank Castle / Punisher", img: "https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?w=300&auto=format&fit=crop&q=80" },
+                { name: "Mark Ruffalo", role: "as Bruce Banner / Hulk", img: "https://images.unsplash.com/photo-1519085360753-af0119f7cbe7?w=300&auto=format&fit=crop&q=80" }
+            ];
+
+            const crewList = [
+                { name: "Destin Cretton", role: "Director", img: "https://images.unsplash.com/photo-1539571696357-5a69c17a67c6?w=300&auto=format&fit=crop&q=80" },
+                { name: "Amy Pascal", role: "Producer", img: "https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=300&auto=format&fit=crop&q=80" },
+                { name: "Kevin Feige", role: "Producer", img: "https://images.unsplash.com/photo-1492562080023-ab3db95bfbce?w=300&auto=format&fit=crop&q=80" },
+                { name: "Chris McKenna", role: "Writer", img: "https://images.unsplash.com/photo-1522075469751-3a6694fb2f61?w=300&auto=format&fit=crop&q=80" },
+                { name: "Erik Sommers", role: "Writer", img: "https://images.unsplash.com/photo-1501196354995-cbb51c65aaea?w=300&auto=format&fit=crop&q=80" },
+                { name: "Avi Arad", role: "Executive Producer", img: "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=300&auto=format&fit=crop&q=80" }
+            ];
+
+            document.getElementById('movie-details-content').innerHTML = `
+                <!-- Banner Header -->
+                <div class="bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden flex flex-col md:flex-row">
+                    <div class="md:w-1/3 aspect-[2/3] bg-slate-100 relative">
+                        <img src="${movie.poster_url}" alt="${movie.title}" class="w-full h-full object-cover">
+                    </div>
+                    <div class="p-8 md:w-2/3 flex flex-col justify-between space-y-6">
+                        <div>
+                            <div class="flex items-center gap-3 mb-4 flex-wrap">
+                                <span class="bg-rose-100 text-[#b8000b] text-xs font-extrabold px-3 py-1 rounded-full uppercase">${movie.genre}</span>
+                                <span class="text-slate-500 text-xs font-semibold"><i class="fa-solid fa-clock text-slate-400 mr-1"></i>${movie.duration_mins} mins</span>
+                            </div>
+
+                            <h2 class="text-3xl font-extrabold text-slate-900 mb-4">${movie.title}</h2>
+
+                            <div class="flex items-center gap-6 bg-slate-50 p-4 rounded-2xl border border-slate-200 w-max">
+                                <div class="flex items-center gap-2">
+                                    <i class="fa-brands fa-imdb text-amber-500 text-3xl"></i>
+                                    <div>
+                                        <span class="text-xs text-slate-400 block font-bold">IMDb Rating</span>
+                                        <span class="text-lg font-extrabold text-slate-900">${movie.rating || '8.8'}/10</span>
+                                    </div>
+                                </div>
+                                <div class="w-px h-8 bg-slate-200"></div>
+                                <div class="flex items-center gap-2">
+                                    <i class="fa-solid fa-star text-rose-600 text-xl"></i>
+                                    <div>
+                                        <span class="text-xs text-slate-400 block font-bold">User Rating</span>
+                                        <span class="text-lg font-extrabold text-slate-900">${movie.user_rating_avg}/5</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div>
+                            <button onclick="window.location.href='/pick-showtime?movie_id=${movie.movie_id}'" 
+                                    class="w-full bg-[#b8000b] hover:bg-[#a0000a] text-white font-extrabold py-3.5 px-6 rounded-2xl text-base transition-all shadow-md flex items-center justify-center gap-2 active:scale-95">
+                                <i class="fa-solid fa-ticket"></i>
+                                <span>Book Tickets</span>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 1. ABOUT THE MOVIE -->
+                <div class="space-y-2">
+                    <h3 class="text-xl font-extrabold text-slate-900">About the movie</h3>
+                    <p class="text-xs text-slate-500">
+                        <span class="font-bold">Accessibility:</span> Closed Captions (CC) & Audio Description (AD) available. Download the 'MovieReading' app to access these features.
+                    </p>
+                    <p class="text-sm text-slate-700 leading-relaxed pt-2">
+                        ${movie.description || 'The fourth installment in the MCU Spider-Man franchise.'}
+                    </p>
+                </div>
+
+                <!-- 2. TOP OFFERS FOR YOU -->
+                <div class="space-y-3">
+                    <h3 class="text-xl font-extrabold text-slate-900">Top offers for you</h3>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div class="bg-amber-50/80 border border-amber-200 rounded-2xl p-4 flex items-center gap-3 cursor-pointer hover:shadow-sm transition">
+                            <div class="w-8 h-8 rounded-full bg-rose-600 text-white font-extrabold flex items-center justify-center text-xs flex-shrink-0">!</div>
+                            <div>
+                                <h4 class="font-bold text-xs text-slate-900">Enjoy B1G1 Ticket Free!* with Bandhan Bank...</h4>
+                                <p class="text-[11px] text-slate-500">Tap to view details</p>
+                            </div>
+                        </div>
+                        <div class="bg-amber-50/80 border border-amber-200 rounded-2xl p-4 flex items-center gap-3 cursor-pointer hover:shadow-sm transition">
+                            <div class="w-8 h-8 rounded-full bg-emerald-600 text-white font-extrabold flex items-center justify-center text-xs flex-shrink-0">✓</div>
+                            <div>
+                                <h4 class="font-bold text-xs text-slate-900">Buy 1 get 1 movie ticket free + 50% off on non...</h4>
+                                <p class="text-[11px] text-slate-500">Tap to view details</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 3. CAST -->
+                <div class="space-y-3">
+                    <h3 class="text-xl font-extrabold text-slate-900">Cast</h3>
+                    <div class="flex gap-4 overflow-x-auto no-scrollbar pb-2">
+                        ${castList.map(actor => `
+                            <div class="flex-shrink-0 w-28 text-left">
+                                <div class="w-28 h-36 rounded-2xl overflow-hidden mb-2 shadow-sm bg-slate-200">
+                                    <img src="${actor.img}" alt="${actor.name}" class="w-full h-full object-cover">
+                                </div>
+                                <h4 class="font-bold text-xs text-slate-900 truncate">${actor.name}</h4>
+                                <p class="text-[11px] text-slate-500 leading-tight truncate">${actor.role}</p>
+                            </div>
+                        `).join('')}
+                    </div>
+                </div>
+
+                <!-- 4. CREW -->
+                <div class="space-y-3">
+                    <h3 class="text-xl font-extrabold text-slate-900">Crew</h3>
+                    <div class="flex gap-4 overflow-x-auto no-scrollbar pb-2">
+                        ${crewList.map(member => `
+                            <div class="flex-shrink-0 w-28 text-left">
+                                <div class="w-28 h-36 rounded-2xl overflow-hidden mb-2 shadow-sm bg-slate-200">
+                                    <img src="${member.img}" alt="${member.name}" class="w-full h-full object-cover">
+                                </div>
+                                <h4 class="font-bold text-xs text-slate-900 truncate">${member.name}</h4>
+                                <p class="text-[11px] text-slate-500 leading-tight truncate">${member.role}</p>
+                            </div>
+                        `).join('')}
+                    </div>
+                </div>
+
+                <!-- 5. TOP REVIEWS -->
+                <div class="space-y-4 pt-4 border-t border-slate-200">
+                    <div class="flex items-center justify-between">
+                        <h3 class="text-xl font-extrabold text-slate-900">Top reviews</h3>
+                        <a href="#reviews-section" class="text-rose-600 font-bold text-xs hover:underline flex items-center gap-1">
+                            <span>78.3K reviews</span> <i class="fa-solid fa-chevron-right text-[10px]"></i>
+                        </a>
+                    </div>
+
+                    <div class="flex items-center gap-2 overflow-x-auto no-scrollbar pb-2 text-xs font-bold text-slate-700">
+                        <span class="px-3 py-1.5 rounded-full border border-slate-300 bg-white flex items-center gap-1.5">
+                            <span class="text-rose-600">#GreatActing</span> <span class="bg-slate-100 text-slate-600 px-1.5 py-0.5 rounded text-[10px]">42844</span>
+                        </span>
+                        <span class="px-3 py-1.5 rounded-full border border-slate-300 bg-white flex items-center gap-1.5">
+                            <span class="text-rose-600">#SuperDirection</span> <span class="bg-slate-100 text-slate-600 px-1.5 py-0.5 rounded text-[10px]">42659</span>
+                        </span>
+                        <span class="px-3 py-1.5 rounded-full border border-slate-300 bg-white flex items-center gap-1.5">
+                            <span>#Wellmade</span> <span class="bg-slate-100 text-slate-600 px-1.5 py-0.5 rounded text-[10px]">30860</span>
+                        </span>
+                        <span class="px-3 py-1.5 rounded-full border border-slate-300 bg-white flex items-center gap-1.5">
+                            <span class="text-rose-600">#Blockbuster</span> <span class="bg-slate-100 text-slate-600 px-1.5 py-0.5 rounded text-[10px]">28102</span>
+                        </span>
+                    </div>
+
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div class="bg-white border border-slate-200 p-5 rounded-2xl shadow-sm flex flex-col justify-between space-y-3">
+                            <div>
+                                <div class="flex justify-between items-center mb-2">
+                                    <div class="flex items-center gap-2">
+                                        <div class="w-8 h-8 rounded-full bg-slate-200 flex items-center justify-center font-bold text-slate-600 text-xs">U</div>
+                                        <div>
+                                            <h4 class="font-bold text-xs text-slate-900">Utsav</h4>
+                                            <p class="text-[10px] text-slate-400">Booked on <span class="text-rose-600 font-bold">bookmyshow</span></p>
+                                        </div>
+                                    </div>
+                                    <span class="text-xs font-extrabold text-rose-600 flex items-center gap-1"><i class="fa-solid fa-star text-rose-600"></i> 10/10</span>
+                                </div>
+                                <p class="text-xs font-bold text-slate-800 mb-1">#SuperDirection #GreatActing #Awesome...</p>
+                                <p class="text-xs text-slate-600 leading-relaxed">The best Spider-Man film in a long time. It feels really grounded. Just like a Spider-Man film should. Just wow. Tom is awesome as Spidey, as always...</p>
+                            </div>
+                            <div class="flex justify-between items-center text-[11px] text-slate-400 pt-2 border-t border-slate-100">
+                                <div class="flex gap-4">
+                                    <button class="hover:text-slate-600"><i class="fa-regular fa-thumbs-up"></i> 2.7K</button>
+                                    <button class="hover:text-slate-600"><i class="fa-regular fa-thumbs-down"></i></button>
+                                </div>
+                                <span>5 Days ago</span>
+                            </div>
+                        </div>
+
+                        <div class="bg-white border border-slate-200 p-5 rounded-2xl shadow-sm flex flex-col justify-between space-y-3">
+                            <div>
+                                <div class="flex justify-between items-center mb-2">
+                                    <div class="flex items-center gap-2">
+                                        <div class="w-8 h-8 rounded-full bg-slate-200 flex items-center justify-center font-bold text-slate-600 text-xs">U</div>
+                                        <div>
+                                            <h4 class="font-bold text-xs text-slate-900">User</h4>
+                                            <p class="text-[10px] text-slate-400">Booked on <span class="text-rose-600 font-bold">bookmyshow</span></p>
+                                        </div>
+                                    </div>
+                                    <span class="text-xs font-extrabold text-rose-600 flex items-center gap-1"><i class="fa-solid fa-star text-rose-600"></i> 10/10</span>
+                                </div>
+                                <p class="text-xs font-bold text-slate-800 mb-1">#SuperDirection #GreatActing #WowMusi...</p>
+                                <p class="text-xs text-slate-600 leading-relaxed">Movie bhaut acchi hai par kya faayda jab saath dost hi na ho! mujhe humesha ki tarh ye movie bhi akele dekhne aani padi!</p>
+                            </div>
+                            <div class="flex justify-between items-center text-[11px] text-slate-400 pt-2 border-t border-slate-100">
+                                <div class="flex gap-4">
+                                    <button class="hover:text-slate-600"><i class="fa-regular fa-thumbs-up"></i> 1.7K</button>
+                                    <button class="hover:text-slate-600"><i class="fa-regular fa-thumbs-down"></i></button>
+                                </div>
+                                <span>5 Days ago</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div id="reviews-section" class="bg-slate-100 p-5 rounded-2xl border border-slate-200 space-y-3 mt-6">
+                        <h4 class="text-xs font-extrabold text-slate-800">Add Your Rating & Review</h4>
+                        <form onsubmit="submitReview(event)" class="flex flex-col sm:flex-row gap-3">
+                            <select id="review-rating" class="text-xs font-bold p-2.5 rounded-xl border border-slate-300 bg-white outline-none">
+                                <option value="5">⭐⭐⭐⭐⭐ (5/5 Excellent)</option>
+                                <option value="4">⭐⭐⭐⭐ (4/5 Good)</option>
+                                <option value="3">⭐⭐⭐ (3/5 Average)</option>
+                                <option value="2">⭐⭐ (2/5 Poor)</option>
+                                <option value="1">⭐ (1/5 Terrible)</option>
+                            </select>
+                            <input type="text" id="review-text" required placeholder="Write your review..." 
+                                   class="flex-1 text-xs p-2.5 rounded-xl border border-slate-300 outline-none focus:border-[#b8000b]">
+                            <button type="submit" class="bg-[#b8000b] text-white font-bold text-xs px-6 py-2.5 rounded-xl hover:bg-[#a0000a] transition-all">Submit Review</button>
+                        </form>
+                    </div>
+                </div>
+            `;
+        }
+
+        function submitReview(e) {
+            e.preventDefault();
+            const rating = document.getElementById('review-rating').value;
+            const review_text = document.getElementById('review-text').value;
+            const currentUser = JSON.parse(localStorage.getItem('currentUser')) || { user_id: 1 };
+
+            fetch(`/api/movies/${movieId}/reviews`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ user_id: currentUser.user_id, rating: parseInt(rating), review_text })
+            })
+            .then(res => res.json())
+            .then(() => {
+                alert('Thank you! Your review has been published.');
+                location.reload();
+            });
+        }
+    </script>
+</body>
+</html>
