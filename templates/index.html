@@ -7,8 +7,6 @@
     
     <script src="https://cdn.tailwindcss.com"></script>
     <script>tailwind.config = { darkMode: 'class' }</script>
-    
-    <!-- Anime.js for Cinematic Animations -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/animejs/3.2.1/anime.min.js"></script>
     
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
@@ -17,92 +15,52 @@
     <style>
         body { font-family: 'Plus Jakarta Sans', sans-serif; background-color: #050505; color: #f8fafc; overflow-x: hidden; }
         .no-scrollbar::-webkit-scrollbar { display: none; }
-        .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
-        
-        /* Cinematic Film Grain & Vignette Overlay */
-        .film-grain {
-            position: absolute; inset: 0; pointer-events: none; z-index: 5; opacity: 0.04;
-            background-image: url("https://images.unsplash.com/photo-1518709268805-4e9042af9f23?w=300&auto=format&fit=crop&q=80");
-        }
-        .vignette-overlay {
-            position: absolute; inset: 0; pointer-events: none; z-index: 4;
-            background: radial-gradient(circle, rgba(5,5,5,0) 40%, rgba(5,5,5,0.85) 90%), linear-gradient(to top, #050505 0%, rgba(5,5,5,0.4) 50%, rgba(5,5,5,0.8) 100%);
-        }
-        
+        .film-grain { position: absolute; inset: 0; pointer-events: none; z-index: 5; opacity: 0.04; background-image: url("https://images.unsplash.com/photo-1518709268805-4e9042af9f23?w=300&auto=format&fit=crop&q=80"); }
+        .vignette-overlay { position: absolute; inset: 0; pointer-events: none; z-index: 4; background: radial-gradient(circle, rgba(5,5,5,0) 40%, rgba(5,5,5,0.85) 90%), linear-gradient(to top, #050505 0%, rgba(5,5,5,0.4) 50%, rgba(5,5,5,0.8) 100%); }
         .glow-card { transition: transform 0.3s ease, box-shadow 0.3s ease; }
         .glow-card:hover { transform: translateY(-6px); box-shadow: 0 10px 30px -10px rgba(184, 0, 11, 0.4); }
-        .skeleton { background: linear-gradient(90deg, #1e293b 25%, #334155 50%, #1e293b 75%); background-size: 200% 100%; animation: skeleton-loading 1.5s infinite; }
-        @keyframes skeleton-loading { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
-
-        /* Floating Light Particles */
-        .particle {
-            position: absolute; width: 3px; height: 3px; background: rgba(255,255,255,0.6);
-            border-radius: 50%; pointer-events: none; z-index: 3; filter: blur(1px);
-        }
+        .particle { position: absolute; width: 3px; height: 3px; background: rgba(255,255,255,0.6); border-radius: 50%; pointer-events: none; z-index: 3; filter: blur(1px); }
     </style>
 </head>
 <body class="min-h-screen flex flex-col transition-colors duration-300">
 
-    <!-- Header / Navbar -->
     <header class="bg-slate-950/80 backdrop-blur-md border-b border-slate-900 sticky top-0 z-50 px-6 py-4 shadow-2xl">
         <div class="flex items-center justify-between max-w-[1400px] mx-auto gap-4">
             <a href="/" class="text-2xl font-black text-[#b8000b] flex items-center gap-2 tracking-tight">
                 <i class="fa-solid fa-film"></i><span>CineHub</span>
             </a>
-
-            <!-- Search Bar -->
             <form action="/search" method="GET" class="hidden md:flex flex-1 max-w-md mx-4 relative items-center">
-                <button type="submit" class="absolute left-4 text-slate-400 hover:text-[#b8000b]">
-                    <i class="fa-solid fa-magnifying-glass text-sm"></i>
-                </button>
+                <button type="submit" class="absolute left-4 text-slate-400 hover:text-[#b8000b]"><i class="fa-solid fa-magnifying-glass text-sm"></i></button>
                 <input type="text" name="q" id="search-input" placeholder="Search movies, sci-fi, action..." 
                        class="w-full pl-11 pr-4 py-2.5 rounded-full bg-slate-900/90 text-slate-100 text-xs outline-none border border-slate-800 focus:border-[#b8000b] transition shadow-inner">
             </form>
-
             <div class="flex items-center gap-3">
-                <a href="/admin" class="px-3.5 py-2 rounded-full bg-slate-900 hover:bg-slate-800 text-xs font-bold text-slate-300 flex items-center gap-1.5 border border-slate-800">
-                    <i class="fa-solid fa-gear text-rose-500"></i> Admin
+                <!-- REWARDS NAV BUTTON -->
+                <a href="/rewards" class="px-4 py-2 rounded-full bg-amber-500/10 hover:bg-amber-500/20 text-xs font-black text-amber-400 flex items-center gap-2 border border-amber-500/30 transition shadow-lg">
+                    <i class="fa-solid fa-trophy text-amber-400"></i> <span>Rewards (<span id="nav-points">1,850</span> pts)</span>
                 </a>
-                <a href="/booking-history" class="p-2.5 rounded-full bg-slate-900 text-slate-300 hover:text-[#b8000b] border border-slate-800" title="Booking History">
-                    <i class="fa-solid fa-clock-rotate-left text-sm"></i>
-                </a>
-                <a href="/login" id="login-btn" class="px-5 py-2 rounded-full bg-[#b8000b] hover:bg-[#a0000a] text-white text-xs font-extrabold shadow-lg transition active:scale-95">
-                    <span id="user-display">Sign In</span>
-                </a>
+                <a href="/admin" class="px-3.5 py-2 rounded-full bg-slate-900 hover:bg-slate-800 text-xs font-bold text-slate-300 flex items-center gap-1.5 border border-slate-800"><i class="fa-solid fa-gear text-rose-500"></i> Admin</a>
+                <a href="/booking-history" class="p-2.5 rounded-full bg-slate-900 text-slate-300 hover:text-[#b8000b] border border-slate-800" title="Booking History"><i class="fa-solid fa-clock-rotate-left text-sm"></i></a>
+                <a href="/login" id="login-btn" class="px-5 py-2 rounded-full bg-[#b8000b] hover:bg-[#a0000a] text-white text-xs font-extrabold shadow-lg transition active:scale-95"><span id="user-display">Sign In</span></a>
             </div>
         </div>
     </header>
 
-    <!-- CINEMATIC HERO EXPERIENCE -->
     <section id="cinematic-hero" class="relative w-full h-[92vh] min-h-[650px] overflow-hidden flex items-center bg-[#050505]">
-        <!-- Layer 1: Background Video / Fallback Poster -->
         <div id="hero-bg-container" class="absolute inset-0 w-full h-full z-0 overflow-hidden scale-105 transition-transform duration-1000">
             <iframe id="hero-video" class="absolute w-[120%] h-[120%] -left-[10%] -top-[10%] object-cover pointer-events-none opacity-40 border-0" src="" allow="autoplay; encrypted-media"></iframe>
             <img id="hero-poster" src="" class="absolute inset-0 w-full h-full object-cover opacity-60 filter blur-xs">
         </div>
-
-        <!-- Layer 2 & 3: Dark Vignette & Film Grain Texture -->
         <div class="vignette-overlay"></div>
         <div class="film-grain"></div>
-
-        <!-- Layer 4: Floating Light Particles -->
         <div id="particles-container" class="absolute inset-0 pointer-events-none"></div>
 
-        <!-- Layer 5: Hero Content & Info (Parallax Layer) -->
         <div id="hero-content-layer" class="relative z-10 max-w-[1400px] w-full mx-auto px-6 md:px-12 flex flex-col justify-center h-full pt-10">
             <div class="max-w-2xl space-y-5">
-                
-                <!-- Small Label -->
                 <div class="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-rose-950/80 border border-rose-800/60 text-rose-400 text-[11px] font-black uppercase tracking-widest shadow-lg">
-                    <span class="w-2 h-2 rounded-full bg-rose-500 animate-pulse"></i> NOW SHOWING</span>
+                    <span class="w-2 h-2 rounded-full bg-rose-500 animate-pulse"></span> NOW SHOWING
                 </div>
-
-                <!-- Movie Title -->
-                <h1 id="hero-title" class="text-4xl sm:text-6xl md:text-7xl font-black text-white tracking-tight drop-shadow-2xl leading-none">
-                    Loading...
-                </h1>
-
-                <!-- Metadata (Genre, Duration, Rating) -->
+                <h1 id="hero-title" class="text-4xl sm:text-6xl md:text-7xl font-black text-white tracking-tight drop-shadow-2xl leading-none">Loading...</h1>
                 <div id="hero-metadata" class="flex items-center gap-4 text-slate-300 text-sm md:text-base font-semibold flex-wrap">
                     <span id="hero-genre" class="text-rose-500 font-bold">Sci-Fi • Action</span>
                     <span class="w-1.5 h-1.5 rounded-full bg-slate-600"></span>
@@ -112,19 +70,12 @@
                         <i class="fa-solid fa-star text-xs"></i> <span id="hero-rating">8.8</span>/10
                     </span>
                 </div>
-
-                <!-- Short Description -->
-                <p id="hero-desc" class="text-slate-300 text-sm md:text-base leading-relaxed line-clamp-3 font-normal max-w-xl">
-                    Experience cinematic masterpieces in ultra high definition IMAX surround sound. Book your tickets instantly.
-                </p>
-
-                <!-- CTA Buttons -->
+                <p id="hero-desc" class="text-slate-300 text-sm md:text-base leading-relaxed line-clamp-3 font-normal max-w-xl">Experience cinematic masterpieces in ultra high definition IMAX surround sound.</p>
                 <div id="hero-buttons" class="flex items-center gap-4 pt-3">
                     <a id="hero-book-btn" href="#" class="group relative inline-flex items-center gap-3 bg-[#b8000b] hover:bg-[#a0000a] text-white font-extrabold px-8 py-4 rounded-xl shadow-2xl text-sm transition-all duration-300 transform hover:scale-105 active:scale-95">
                         <span>BOOK NOW</span>
                         <i class="fa-solid fa-arrow-right text-xs transition-transform duration-300 group-hover:translate-x-1.5"></i>
                     </a>
-                    
                     <button id="hero-trailer-btn" onclick="openActiveTrailer()" class="inline-flex items-center gap-2.5 bg-white/10 hover:bg-white/20 backdrop-blur-md text-white font-bold px-7 py-4 rounded-xl border border-white/20 text-sm transition-all duration-300 shadow-xl cursor-pointer">
                         <i class="fa-solid fa-circle-play text-rose-500 text-lg"></i>
                         <span>WATCH TRAILER</span>
@@ -132,19 +83,12 @@
                 </div>
             </div>
         </div>
-
-        <!-- Hero Cinematic Indicator & Manual Carousel Switcher -->
         <div class="absolute bottom-8 right-8 md:right-16 z-20 flex items-center gap-3">
-            <div id="hero-indicators" class="flex items-center gap-2">
-                <!-- Injected via JS -->
-            </div>
+            <div id="hero-indicators" class="flex items-center gap-2"></div>
         </div>
     </section>
 
-    <!-- Main Content Container -->
     <main class="flex-1 max-w-[1400px] w-full mx-auto px-6 md:px-12 py-12 space-y-16">
-
-        <!-- Netflix-Level "BECAUSE YOU WATCHED..." AI Carousel Section -->
         <section class="space-y-6">
             <div class="flex items-center justify-between">
                 <div>
@@ -156,18 +100,11 @@
                     </div>
                     <p class="text-xs text-slate-400 mt-1">Movies selected specially for you using real-time AI recommendations</p>
                 </div>
-
                 <div class="flex items-center gap-2">
-                    <button onclick="scrollCarousel(-320)" class="w-10 h-10 rounded-full bg-slate-900 border border-slate-800 text-slate-300 hover:text-white hover:border-[#b8000b] flex items-center justify-center transition cursor-pointer">
-                        <i class="fa-solid fa-chevron-left text-sm"></i>
-                    </button>
-                    <button onclick="scrollCarousel(320)" class="w-10 h-10 rounded-full bg-slate-900 border border-slate-800 text-slate-300 hover:text-white hover:border-[#b8000b] flex items-center justify-center transition cursor-pointer">
-                        <i class="fa-solid fa-chevron-right text-sm"></i>
-                    </button>
+                    <button onclick="scrollCarousel(-320)" class="w-10 h-10 rounded-full bg-slate-900 border border-slate-800 text-slate-300 hover:text-white hover:border-[#b8000b] flex items-center justify-center transition cursor-pointer"><i class="fa-solid fa-chevron-left text-sm"></i></button>
+                    <button onclick="scrollCarousel(320)" class="w-10 h-10 rounded-full bg-slate-900 border border-slate-800 text-slate-300 hover:text-white hover:border-[#b8000b] flex items-center justify-center transition cursor-pointer"><i class="fa-solid fa-chevron-right text-sm"></i></button>
                 </div>
             </div>
-
-            <!-- Horizontal Recommendation Carousel -->
             <div id="ai-carousel" class="flex gap-6 overflow-x-auto no-scrollbar py-4 scroll-smooth">
                 <div class="w-64 h-96 skeleton rounded-3xl flex-shrink-0"></div>
                 <div class="w-64 h-96 skeleton rounded-3xl flex-shrink-0"></div>
@@ -175,34 +112,17 @@
             </div>
         </section>
 
-        <!-- Mood Selector -->
-        <section class="bg-slate-900/60 backdrop-blur-md p-8 rounded-3xl border border-slate-800/80 text-center shadow-2xl">
-            <h3 class="text-xl font-black mb-1 text-white">What do you feel like watching today?</h3>
-            <p class="text-xs text-slate-400 mb-6">Pick a mood to influence AI recommendations</p>
-            <div class="flex flex-wrap items-center justify-center gap-3">
-                <button onclick="saveMoodPreference('Action')" class="px-5 py-2.5 rounded-2xl bg-slate-800 hover:bg-[#b8000b] text-xs font-extrabold transition cursor-pointer border border-slate-700">😊 Happy / Action</button>
-                <button onclick="saveMoodPreference('Romance')" class="px-5 py-2.5 rounded-2xl bg-slate-800 hover:bg-[#b8000b] text-xs font-extrabold transition cursor-pointer border border-slate-700">❤️ Romantic</button>
-                <button onclick="saveMoodPreference('Thriller')" class="px-5 py-2.5 rounded-2xl bg-slate-800 hover:bg-[#b8000b] text-xs font-extrabold transition cursor-pointer border border-slate-700">😱 Thriller</button>
-                <button onclick="saveMoodPreference('Comedy')" class="px-5 py-2.5 rounded-2xl bg-slate-800 hover:bg-[#b8000b] text-xs font-extrabold transition cursor-pointer border border-slate-700">😂 Comedy</button>
-                <button onclick="saveMoodPreference('Sci-Fi')" class="px-5 py-2.5 rounded-2xl bg-slate-800 hover:bg-[#b8000b] text-xs font-extrabold transition cursor-pointer border border-slate-700">🚀 Sci-Fi</button>
-            </div>
-        </section>
-
-        <!-- Trending Movies Catalog -->
         <section class="space-y-6">
             <h2 class="text-2xl font-black tracking-tight">Now Showing Catalog</h2>
             <div id="movie-grid" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-6"></div>
         </section>
     </main>
 
-    <!-- CINEMATIC TRAILER MODAL -->
     <div id="trailer-modal" class="fixed inset-0 z-50 hidden flex items-center justify-center bg-black/90 backdrop-blur-xl p-4 md:p-12 opacity-0 transition-opacity duration-300">
         <div id="modal-container" class="relative w-full max-w-5xl bg-slate-950 rounded-3xl overflow-hidden shadow-2xl border border-slate-800 transform scale-90 transition-transform duration-300">
             <div class="flex items-center justify-between px-6 py-4 bg-slate-900 border-b border-slate-800">
                 <h3 id="modal-movie-title" class="font-extrabold text-sm md:text-base text-white truncate">Official Trailer</h3>
-                <button onclick="closeTrailerModal()" class="w-9 h-9 rounded-full bg-slate-800 hover:bg-rose-600 text-slate-300 hover:text-white flex items-center justify-center transition cursor-pointer">
-                    <i class="fa-solid fa-xmark text-base"></i>
-                </button>
+                <button onclick="closeTrailerModal()" class="w-9 h-9 rounded-full bg-slate-800 hover:bg-rose-600 text-slate-300 hover:text-white flex items-center justify-center transition cursor-pointer"><i class="fa-solid fa-xmark text-base"></i></button>
             </div>
             <div class="relative aspect-video w-full bg-black">
                 <iframe id="modal-iframe" src="" class="w-full h-full border-0" allow="autoplay; encrypted-media" allowfullscreen></iframe>
@@ -210,12 +130,10 @@
         </div>
     </div>
 
-    <!-- Footer -->
     <footer class="bg-slate-950 border-t border-slate-900 py-8 text-center text-xs text-slate-500 mt-auto">
-        © 2026 CineHub. All Rights Reserved. Premium Cinematic Experience.
+        © 2026 CineHub. All Rights Reserved.
     </footer>
 
-    <!-- Frontend Cinematic Hero & Application Logic -->
     <script>
         let featuredMovies = [];
         let currentHeroIndex = 0;
@@ -223,15 +141,19 @@
         let activeTrailerUrl = '';
 
         document.addEventListener('DOMContentLoaded', () => {
-            const user = JSON.parse(localStorage.getItem('currentUser')) || { user_id: 1, full_name: "Guest" };
+            const user = JSON.parse(localStorage.getItem('currentUser')) || { user_id: 1, full_name: "John Doe" };
             if (user && user.full_name) {
                 document.getElementById('user-display').innerText = user.full_name;
             }
 
-            // Initialize Particles
-            initParticles();
+            // Fetch user points for nav
+            fetch(`/api/users/${user.user_id || 1}/rewards`)
+                .then(r => r.json())
+                .then(data => {
+                    document.getElementById('nav-points').innerText = data.points.toLocaleString();
+                });
 
-            // Fetch Featured Movies for Cinematic Hero
+            initParticles();
             fetch('/api/featured-movies')
                 .then(r => r.json())
                 .then(movies => {
@@ -243,24 +165,14 @@
                     }
                 });
 
-            // Fetch All Movies for Grid
             fetch('/api/movies')
                 .then(r => r.json())
                 .then(movies => renderGrid(movies));
 
-            // Load AI Recommendations
-            loadAIRecommendations(user.user_id);
-
-            // Parallax mouse effect
+            loadAIRecommendations(user.user_id || 1);
             initParallax();
-
-            // Keyboard listeners for modal
-            window.addEventListener('keydown', (e) => {
-                if (e.key === 'Escape') closeTrailerModal();
-            });
         });
 
-        // --- CINEMATIC HERO ROTATION & ANIMATION ---
         function buildHeroIndicators() {
             const container = document.getElementById('hero-indicators');
             container.innerHTML = featuredMovies.map((m, idx) => `
@@ -278,13 +190,11 @@
             const movie = featuredMovies[index];
             activeTrailerUrl = movie.trailer_url;
 
-            // Update indicators visual
             featuredMovies.forEach((_, idx) => {
                 const bar = document.getElementById(`indicator-bar-${idx}`);
                 if (bar) bar.style.width = idx === index ? '100%' : '0%';
             });
 
-            // Cinematic Entrance / Transition Animation using Anime.js
             if (!isInitial) {
                 anime({
                     targets: ['#hero-title', '#hero-metadata', '#hero-desc', '#hero-buttons'],
@@ -312,7 +222,6 @@
             document.getElementById('hero-book-btn').href = `/pick-showtime?movie_id=${movie.movie_id}`;
             document.getElementById('hero-poster').src = movie.poster_url;
             
-            // Safe Video Handling
             const videoIframe = document.getElementById('hero-video');
             if (movie.trailer_url) {
                 videoIframe.src = movie.trailer_url;
@@ -323,27 +232,9 @@
         }
 
         function animateHeroIn() {
-            anime({
-                targets: '#hero-title',
-                opacity: [0, 1],
-                translateY: [30, 0],
-                duration: 800,
-                easing: 'easeOutExpo'
-            });
-            anime({
-                targets: ['#hero-metadata', '#hero-desc', '#hero-buttons'],
-                opacity: [0, 1],
-                translateY: [20, 0],
-                delay: anime.stagger(100, {start: 200}),
-                duration: 700,
-                easing: 'easeOutExpo'
-            });
-            anime({
-                targets: '#hero-bg-container',
-                scale: [1.1, 1],
-                duration: 1200,
-                easing: 'easeOutQuad'
-            });
+            anime({ targets: '#hero-title', opacity: [0, 1], translateY: [30, 0], duration: 800, easing: 'easeOutExpo' });
+            anime({ targets: ['#hero-metadata', '#hero-desc', '#hero-buttons'], opacity: [0, 1], translateY: [20, 0], delay: anime.stagger(100, {start: 200}), duration: 700, easing: 'easeOutExpo' });
+            anime({ targets: '#hero-bg-container', scale: [1.1, 1], duration: 1200, easing: 'easeOutQuad' });
         }
 
         function startHeroRotation() {
@@ -357,10 +248,9 @@
         function manualSelectHero(idx) {
             if (idx === currentHeroIndex) return;
             setHeroMovie(idx);
-            startHeroRotation(); // Reset timer on manual click
+            startHeroRotation();
         }
 
-        // --- PARALLAX MOUSE EFFECT ---
         function initParallax() {
             const hero = document.getElementById('cinematic-hero');
             const bg = document.getElementById('hero-bg-container');
@@ -370,46 +260,24 @@
                 const rect = hero.getBoundingClientRect();
                 const x = (e.clientX - rect.left) / rect.width - 0.5;
                 const y = (e.clientY - rect.top) / rect.height - 0.5;
-
-                anime({
-                    targets: bg,
-                    translateX: x * -25,
-                    translateY: y * -25,
-                    duration: 50,
-                    easing: 'linear'
-                });
-                anime({
-                    targets: content,
-                    translateX: x * 15,
-                    translateY: y * 15,
-                    duration: 50,
-                    easing: 'linear'
-                });
+                anime({ targets: bg, translateX: x * -25, translateY: y * -25, duration: 50, easing: 'linear' });
+                anime({ targets: content, translateX: x * 15, translateY: y * 15, duration: 50, easing: 'linear' });
             });
 
             hero.addEventListener('mouseleave', () => {
-                anime({
-                    targets: [bg, content],
-                    translateX: 0,
-                    translateY: 0,
-                    duration: 800,
-                    easing: 'easeOutExpo'
-                });
+                anime({ targets: [bg, content], translateX: 0, translateY: 0, duration: 800, easing: 'easeOutExpo' });
             });
         }
 
-        // --- PARTICLES SYSTEM ---
         function initParticles() {
             const container = document.getElementById('particles-container');
-            const particleCount = 25;
-            for (let i = 0; i < particleCount; i++) {
+            for (let i = 0; i < 25; i++) {
                 const p = document.createElement('div');
                 p.className = 'particle';
                 p.style.left = `${Math.random() * 100}%`;
                 p.style.top = `${Math.random() * 100}%`;
                 container.appendChild(p);
             }
-
             anime({
                 targets: '.particle',
                 translateY: () => anime.random(-150, 150),
@@ -423,53 +291,30 @@
             });
         }
 
-        // --- TRAILER MODAL SYSTEM ---
         function openActiveTrailer() {
             if (!activeTrailerUrl) return;
             const modal = document.getElementById('trailer-modal');
             const iframe = document.getElementById('modal-iframe');
             const container = document.getElementById('modal-container');
-
-            // Ensure autoplay enabled in modal
-            let embedUrl = activeTrailerUrl;
-            if (!embedUrl.includes('autoplay=1')) {
-                embedUrl += (embedUrl.includes('?') ? '&' : '?') + 'autoplay=1';
-            }
-            iframe.src = embedUrl;
+            iframe.src = activeTrailerUrl;
             modal.classList.remove('hidden');
-
-            anime({
-                targets: modal,
-                opacity: [0, 1],
-                duration: 300,
-                easing: 'easeOutQuad'
-            });
-            anime({
-                targets: container,
-                scale: [0.92, 1],
-                duration: 400,
-                easing: 'easeOutExpo'
-            });
+            anime({ targets: modal, opacity: [0, 1], duration: 300, easing: 'easeOutQuad' });
+            anime({ targets: container, scale: [0.92, 1], duration: 400, easing: 'easeOutExpo' });
         }
 
         function closeTrailerModal() {
             const modal = document.getElementById('trailer-modal');
             const iframe = document.getElementById('modal-iframe');
-
             anime({
                 targets: '#modal-container',
                 scale: [1, 0.92],
                 opacity: [1, 0],
                 duration: 250,
                 easing: 'easeInQuad',
-                complete: () => {
-                    iframe.src = '';
-                    modal.classList.add('hidden');
-                }
+                complete: () => { iframe.src = ''; modal.classList.add('hidden'); }
             });
         }
 
-        // --- NETFLIX-LEVEL AI RECOMMENDATIONS & GRID ---
         function loadAIRecommendations(userId) {
             fetch(`/api/recommendations/${userId}`)
                 .then(r => r.json())
@@ -478,18 +323,12 @@
                     const carousel = document.getElementById('ai-carousel');
                     
                     if (!data.recommendations || data.recommendations.length === 0) {
-                        carousel.innerHTML = `<div class="text-slate-400 text-xs py-8">No AI recommendations generated yet.</div>`;
+                        carousel.innerHTML = `<div class="text-slate-400 text-xs py-8">No AI recommendations available.</div>`;
                         return;
                     }
 
                     carousel.innerHTML = data.recommendations.map(m => `
                         <div class="ai-card flex-shrink-0 w-64 bg-slate-900 border border-slate-800 rounded-3xl p-4 glow-card flex flex-col justify-between relative group">
-                            
-                            <!-- Wishlist Button -->
-                            <button onclick="toggleWishlist(event, ${m.movie_id})" class="absolute top-6 right-6 w-8 h-8 rounded-full bg-slate-950/80 backdrop-blur-md flex items-center justify-center text-xs text-slate-300 hover:text-rose-500 transition z-10 cursor-pointer">
-                                <i class="${m.is_in_wishlist ? 'fa-solid text-rose-500' : 'fa-regular'} fa-heart"></i>
-                            </button>
-
                             <div>
                                 <div class="relative aspect-[2/3] rounded-2xl overflow-hidden mb-3">
                                     <img src="${m.poster_url}" class="w-full h-full object-cover">
@@ -497,26 +336,19 @@
                                         <i class="fa-solid fa-bolt text-emerald-400"></i> ${m.match_percentage}% Match
                                     </div>
                                 </div>
-
                                 <h4 class="font-extrabold text-base text-white truncate">${m.title}</h4>
                                 <div class="flex items-center justify-between text-xs text-slate-400 mt-1">
                                     <span>${m.genre.split('/')[0]}</span>
                                     <span class="text-amber-400 font-bold"><i class="fa-solid fa-star text-[10px]"></i> ${m.rating}</span>
                                 </div>
-
                                 <div class="mt-3 bg-slate-950/60 border border-slate-800 p-2 rounded-xl text-[10px] text-slate-300 leading-tight">
                                     <span class="text-[#b8000b] font-bold block mb-0.5"><i class="fa-solid fa-sparkles mr-1"></i>Why recommended:</span>
                                     ${m.why_recommended}
                                 </div>
                             </div>
-
                             <div class="flex gap-2 mt-4">
-                                <button onclick="window.location.href='/pick-showtime?movie_id=${m.movie_id}'" class="flex-1 bg-[#b8000b] hover:bg-[#a0000a] text-white text-xs font-black py-2.5 rounded-xl shadow-md transition active:scale-95 cursor-pointer">
-                                    Book Now
-                                </button>
-                                <button onclick="openModalForMovie('${m.trailer_url}', '${m.title.replace(/'/g, "\\'")}')" class="bg-slate-800 hover:bg-slate-700 text-slate-200 px-3 py-2.5 rounded-xl text-xs transition cursor-pointer">
-                                    <i class="fa-solid fa-play"></i>
-                                </button>
+                                <button onclick="window.location.href='/pick-showtime?movie_id=${m.movie_id}'" class="flex-1 bg-[#b8000b] hover:bg-[#a0000a] text-white text-xs font-black py-2.5 rounded-xl shadow-md transition active:scale-95 cursor-pointer">Book Now</button>
+                                <button onclick="openModalForMovie('${m.trailer_url}', '${m.title.replace(/'/g, "\\'")}')" class="bg-slate-800 hover:bg-slate-700 text-slate-200 px-3 py-2.5 rounded-xl text-xs transition cursor-pointer"><i class="fa-solid fa-play"></i></button>
                             </div>
                         </div>
                     `).join('');
@@ -529,6 +361,9 @@
                         duration: 500,
                         easing: 'easeOutQuad'
                     });
+                })
+                .catch(err => {
+                    console.error("Failed loading recommendations:", err);
                 });
         }
 
@@ -551,25 +386,6 @@
             activeTrailerUrl = url;
             document.getElementById('modal-movie-title').innerText = `${title} - Official Trailer`;
             openActiveTrailer();
-        }
-
-        function toggleWishlist(e, movieId) {
-            e.stopPropagation();
-            const user = JSON.parse(localStorage.getItem('currentUser')) || { user_id: 1 };
-            fetch('/api/wishlist/toggle', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ user_id: user.user_id, movie_id: movieId })
-            }).then(() => loadAIRecommendations(user.user_id));
-        }
-
-        function saveMoodPreference(genre) {
-            const user = JSON.parse(localStorage.getItem('currentUser')) || { user_id: 1 };
-            fetch('/api/user-preferences', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ user_id: user.user_id, favorite_genre: genre })
-            }).then(() => loadAIRecommendations(user.user_id));
         }
     </script>
 </body>
