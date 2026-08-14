@@ -1,0 +1,727 @@
+﻿<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CineHub - Cinema Explorer</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Leaflet Dark Map CSS & JS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <!-- Anime.js -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/animejs/3.2.1/anime.min.js"></script>
+
+    <style>
+        /* Cinematic Dark Leaflet Map */
+        #map {
+            width: 100%;
+            height: 100%;
+            min-height: 480px;
+            background: #080c14;
+            border-radius: 1.5rem;
+            z-index: 10;
+        }
+        .leaflet-container {
+            font-family: inherit;
+            background: #030712 !important;
+        }
+        .leaflet-control-zoom {
+            border: 1px solid rgba(51, 65, 85, 0.8) !important;
+            border-radius: 12px !important;
+            overflow: hidden;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.6) !important;
+        }
+        .leaflet-control-zoom a {
+            background-color: rgba(15, 23, 42, 0.9) !important;
+            color: #f8fafc !important;
+            border-bottom: 1px solid #1e293b !important;
+        }
+        .leaflet-control-zoom a:hover {
+            background-color: #e11d48 !important;
+            color: white !important;
+        }
+        .leaflet-popup-content-wrapper {
+            background: rgba(15, 23, 42, 0.95) !important;
+            backdrop-filter: blur(16px);
+            border: 1px solid rgba(225, 29, 72, 0.3) !important;
+            border-radius: 18px !important;
+            color: #f8fafc !important;
+            padding: 0 !important;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.8), 0 0 25px rgba(225,29,72,0.2) !important;
+        }
+        .leaflet-popup-content {
+            margin: 0 !important;
+            line-height: 1.4 !important;
+        }
+        .leaflet-popup-tip {
+            background: rgba(15, 23, 42, 0.95) !important;
+        }
+
+        /* Marker Pulses */
+        .cinema-marker-icon {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+        }
+        .marker-pulse {
+            position: absolute;
+            width: 38px;
+            height: 38px;
+            border-radius: 9999px;
+            background: rgba(225, 29, 72, 0.35);
+            animation: ping 2s cubic-bezier(0, 0, 0.2, 1) infinite;
+        }
+        .marker-pin {
+            width: 28px;
+            height: 28px;
+            border-radius: 9999px;
+            background: linear-gradient(135deg, #f43f5e 0%, #be123c 100%);
+            border: 2px solid #ffffff;
+            box-shadow: 0 0 16px rgba(244, 63, 94, 0.9);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 11px;
+            font-weight: 800;
+            transition: transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
+        }
+        .marker-pin.premium-pin {
+            background: linear-gradient(135deg, #fbbf24 0%, #d97706 100%);
+            border-color: #fef08a;
+            box-shadow: 0 0 20px rgba(251, 191, 36, 0.9);
+        }
+        .marker-pin:hover, .marker-selected .marker-pin {
+            transform: scale(1.35);
+        }
+
+        /* Range Slider Styling */
+        input[type="range"] {
+            accent-color: #f43f5e;
+        }
+    </style>
+</head>
+<body class="bg-[#030712] text-slate-100 min-h-screen flex flex-col font-sans selection:bg-rose-500 selection:text-white">
+
+    <!-- Ambient Cinema Glow Background -->
+    <div class="fixed inset-0 pointer-events-none z-0">
+        <div class="absolute top-10 left-1/4 w-[700px] h-[450px] bg-rose-600/10 blur-[150px] rounded-full"></div>
+        <div class="absolute bottom-10 right-1/4 w-[600px] h-[400px] bg-sky-600/5 blur-[140px] rounded-full"></div>
+    </div>
+
+    <!-- Header Navigation -->
+    <header class="relative z-30 border-b border-slate-800/80 bg-[#030712]/80 backdrop-blur-xl px-6 py-4 flex items-center justify-between sticky top-0">
+        <div class="flex items-center gap-6">
+            <a href="/" class="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-slate-400 hover:text-white transition group">
+                <i class="fa-solid fa-arrow-left transition-transform group-hover:-translate-x-1"></i>
+                <span>Home</span>
+            </a>
+            <div class="h-4 w-px bg-slate-800"></div>
+            <a href="/" class="text-xl font-black tracking-tight text-white flex items-center gap-1">
+                <span class="text-rose-600">CINE</span>HUB
+            </a>
+        </div>
+
+        <div class="flex items-center gap-4">
+            <div class="flex items-center gap-2 bg-slate-900/90 border border-slate-800 px-3.5 py-1.5 rounded-full text-xs font-bold text-slate-300">
+                <i class="fa-solid fa-location-dot text-rose-500"></i>
+                <span id="current-city-label">Mumbai, MH</span>
+                <button onclick="changeLocationPrompt()" class="text-[10px] uppercase text-rose-400 hover:text-rose-300 font-extrabold ml-1">Change</button>
+            </div>
+            <a href="/booking-history" class="text-xs font-bold text-slate-400 hover:text-white transition hidden sm:inline-block">Bookings</a>
+        </div>
+    </header>
+
+    <!-- Main Workspace -->
+    <main class="relative z-10 flex-1 max-w-7xl w-full mx-auto p-4 sm:p-6 lg:p-8 space-y-8">
+        
+        <!-- Page Title & Matchmaking Header -->
+        <div class="flex flex-col md:flex-row md:items-end justify-between gap-4 pb-2 border-b border-slate-800/60">
+            <div>
+                <span class="text-[10px] font-black uppercase tracking-widest text-rose-500 flex items-center gap-1.5 mb-1">
+                    <i class="fa-solid fa-compass animate-spin text-[9px]" style="animation-duration: 8s;"></i> Discovery Mode
+                </span>
+                <h1 class="text-3xl sm:text-4xl font-black text-white tracking-tight">CINEMA EXPLORER</h1>
+                <p class="text-xs sm:text-sm text-slate-400 mt-1">Find the perfect cinema for your movie night with real-time acoustics & formats.</p>
+            </div>
+            
+            <div class="flex items-center gap-3">
+                <span class="text-xs font-bold text-slate-400"><span id="cinema-count-badge" class="text-rose-400 font-extrabold">0</span> cinemas near you</span>
+                <button onclick="resetAllFilters()" class="text-xs bg-slate-900 hover:bg-slate-800 border border-slate-800 text-slate-300 px-3 py-1.5 rounded-xl font-medium transition">
+                    <i class="fa-solid fa-rotate-left mr-1 text-[10px]"></i> Reset
+                </button>
+            </div>
+        </div>
+
+        <!-- "FIND YOUR PERFECT CINEMA" Smart Matcher -->
+        <section class="bg-gradient-to-r from-slate-900/90 via-slate-900/60 to-rose-950/30 border border-slate-800/80 rounded-3xl p-6 backdrop-blur-xl shadow-2xl space-y-4">
+            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <div>
+                    <h2 class="text-sm font-black uppercase tracking-wider text-white flex items-center gap-2">
+                        <i class="fa-solid fa-wand-magic-sparkles text-rose-500"></i>
+                        <span>Find Your Perfect Cinema</span>
+                    </h2>
+                    <p class="text-xs text-slate-400 mt-0.5">Tell us what matters most tonight:</p>
+                </div>
+                
+                <!-- Quick Match Criteria Chips -->
+                <div class="flex flex-wrap gap-2">
+                    <button onclick="applyPreset('closest')" class="preset-btn px-3.5 py-1.5 rounded-xl text-xs font-bold bg-slate-800/90 hover:bg-rose-600 border border-slate-700 hover:border-rose-500 text-slate-200 hover:text-white transition">
+                        <i class="fa-solid fa-person-walking mr-1"></i> Closest
+                    </button>
+                    <button onclick="applyPreset('cheapest')" class="preset-btn px-3.5 py-1.5 rounded-xl text-xs font-bold bg-slate-800/90 hover:bg-rose-600 border border-slate-700 hover:border-rose-500 text-slate-200 hover:text-white transition">
+                        <i class="fa-solid fa-tag mr-1"></i> Cheapest
+                    </button>
+                    <button onclick="applyPreset('imax')" class="preset-btn px-3.5 py-1.5 rounded-xl text-xs font-bold bg-slate-800/90 hover:bg-rose-600 border border-slate-700 hover:border-rose-500 text-slate-200 hover:text-white transition">
+                        <i class="fa-solid fa-film mr-1"></i> IMAX
+                    </button>
+                    <button onclick="applyPreset('premium')" class="preset-btn px-3.5 py-1.5 rounded-xl text-xs font-bold bg-slate-800/90 hover:bg-rose-600 border border-slate-700 hover:border-rose-500 text-slate-200 hover:text-white transition">
+                        <i class="fa-solid fa-couch mr-1"></i> Premium
+                    </button>
+                    <button onclick="applyPreset('rating')" class="preset-btn px-3.5 py-1.5 rounded-xl text-xs font-bold bg-slate-800/90 hover:bg-rose-600 border border-slate-700 hover:border-rose-500 text-slate-200 hover:text-white transition">
+                        <i class="fa-solid fa-star mr-1 text-amber-400"></i> Best Rated
+                    </button>
+                </div>
+            </div>
+
+            <!-- Dynamic "Best Match For You" Banner Card -->
+            <div id="best-match-card" class="bg-slate-950/80 border border-rose-500/30 rounded-2xl p-4 sm:p-5 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+                <div class="flex items-start gap-4">
+                    <div class="w-12 h-12 rounded-2xl bg-rose-600/20 border border-rose-500/30 flex items-center justify-center text-rose-500 text-xl shrink-0">
+                        <i class="fa-solid fa-award"></i>
+                    </div>
+                    <div>
+                        <div class="flex items-center gap-2">
+                            <span class="text-[10px] font-black uppercase tracking-wider text-rose-400">✨ Best Match For You</span>
+                            <span id="best-match-percent" class="px-2 py-0.2 rounded-full bg-rose-500 text-white text-[10px] font-black">94% Match</span>
+                        </div>
+                        <h3 id="best-match-name" class="font-bold text-base sm:text-lg text-white">CineMax IMAX Luxe</h3>
+                        <p id="best-match-reasons" class="text-xs text-slate-400 mt-0.5">1.8 km away • IMAX Laser • Dolby Atmos • Premium Recliners</p>
+                    </div>
+                </div>
+                <button id="best-match-action" onclick="openCinemaDetailModal(1)" class="w-full md:w-auto bg-rose-600 hover:bg-rose-500 text-white text-xs font-bold px-5 py-3 rounded-xl shadow-lg shadow-rose-950/40 transition">
+                    Explore Cinema & Showtimes <i class="fa-solid fa-arrow-right ml-1"></i>
+                </button>
+            </div>
+        </section>
+
+        <!-- Main Explorer Grid: Sidebar Filters + Interactive Map -->
+        <div class="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+            
+            <!-- Left Panel: Modern Filter System (4 cols) -->
+            <aside class="lg:col-span-4 bg-slate-900/60 border border-slate-800/80 backdrop-blur-2xl rounded-3xl p-6 space-y-6 shadow-2xl">
+                <div class="flex items-center justify-between pb-3 border-b border-slate-800/80">
+                    <h2 class="text-sm font-black uppercase tracking-wider text-white flex items-center gap-2">
+                        <i class="fa-solid fa-sliders text-rose-500"></i>
+                        <span>Filters & Preference</span>
+                    </h2>
+                    <span class="text-[10px] uppercase font-bold text-slate-500">Live Updated</span>
+                </div>
+
+                <!-- Distance Range Slider -->
+                <div class="space-y-2">
+                    <div class="flex justify-between text-xs">
+                        <span class="font-bold text-slate-300">Max Distance</span>
+                        <span id="distance-val-display" class="font-extrabold text-rose-400">Within 10 km</span>
+                    </div>
+                    <input type="range" id="distance-slider" min="1" max="15" value="10" step="0.5" class="w-full h-1.5 bg-slate-800 rounded-lg cursor-pointer" oninput="handleFilterChange()">
+                    <div class="flex justify-between text-[10px] text-slate-500 font-medium">
+                        <span>1 km</span>
+                        <span>5 km</span>
+                        <span>15 km</span>
+                    </div>
+                </div>
+
+                <!-- Cinema Formats (Chips) -->
+                <div class="space-y-2.5">
+                    <span class="text-xs font-bold text-slate-300 block">Experience & Formats</span>
+                    <div class="flex flex-wrap gap-2" id="format-chips-container">
+                        <button onclick="toggleChip(this, 'IMAX')" class="format-chip px-3 py-1.5 rounded-xl text-xs font-bold bg-slate-950 border border-slate-800 text-slate-400 hover:border-slate-700 transition">IMAX</button>
+                        <button onclick="toggleChip(this, '4DX')" class="format-chip px-3 py-1.5 rounded-xl text-xs font-bold bg-slate-950 border border-slate-800 text-slate-400 hover:border-slate-700 transition">4DX</button>
+                        <button onclick="toggleChip(this, 'Dolby Atmos')" class="format-chip px-3 py-1.5 rounded-xl text-xs font-bold bg-slate-950 border border-slate-800 text-slate-400 hover:border-slate-700 transition">Dolby Atmos</button>
+                        <button onclick="toggleChip(this, '3D')" class="format-chip px-3 py-1.5 rounded-xl text-xs font-bold bg-slate-950 border border-slate-800 text-slate-400 hover:border-slate-700 transition">3D</button>
+                        <button onclick="toggleChip(this, '2D')" class="format-chip px-3 py-1.5 rounded-xl text-xs font-bold bg-slate-950 border border-slate-800 text-slate-400 hover:border-slate-700 transition">2D</button>
+                    </div>
+                </div>
+
+                <!-- Facilities Checklist -->
+                <div class="space-y-2.5">
+                    <span class="text-xs font-bold text-slate-300 block">Facilities & Amenities</span>
+                    <div class="space-y-2 text-xs">
+                        <label class="flex items-center gap-2.5 cursor-pointer text-slate-400 hover:text-slate-200 select-none">
+                            <input type="checkbox" value="Premium Seating" class="facility-checkbox rounded bg-slate-950 border-slate-700 text-rose-600 focus:ring-0" onchange="handleFilterChange()">
+                            <span>Premium Seating / Recliners</span>
+                        </label>
+                        <label class="flex items-center gap-2.5 cursor-pointer text-slate-400 hover:text-slate-200 select-none">
+                            <input type="checkbox" value="Parking" class="facility-checkbox rounded bg-slate-950 border-slate-700 text-rose-600 focus:ring-0" onchange="handleFilterChange()">
+                            <span>Dedicated Parking Area</span>
+                        </label>
+                        <label class="flex items-center gap-2.5 cursor-pointer text-slate-400 hover:text-slate-200 select-none">
+                            <input type="checkbox" value="Food Court" class="facility-checkbox rounded bg-slate-950 border-slate-700 text-rose-600 focus:ring-0" onchange="handleFilterChange()">
+                            <span>Gourmet Food & Beverages</span>
+                        </label>
+                        <label class="flex items-center gap-2.5 cursor-pointer text-slate-400 hover:text-slate-200 select-none">
+                            <input type="checkbox" value="Wheelchair Accessible" class="facility-checkbox rounded bg-slate-950 border-slate-700 text-rose-600 focus:ring-0" onchange="handleFilterChange()">
+                            <span>Wheelchair Accessible</span>
+                        </label>
+                    </div>
+                </div>
+
+                <!-- Max Ticket Starting Price Slider -->
+                <div class="space-y-2">
+                    <div class="flex justify-between text-xs">
+                        <span class="font-bold text-slate-300">Max Starting Price</span>
+                        <span id="price-val-display" class="font-extrabold text-rose-400">Up to ₹500</span>
+                    </div>
+                    <input type="range" id="price-slider" min="150" max="600" value="500" step="50" class="w-full h-1.5 bg-slate-800 rounded-lg cursor-pointer" oninput="handleFilterChange()">
+                    <div class="flex justify-between text-[10px] text-slate-500 font-medium">
+                        <span>₹150</span>
+                        <span>₹350</span>
+                        <span>₹600+</span>
+                    </div>
+                </div>
+
+                <!-- Smart Sorting Dropdown -->
+                <div class="space-y-2 pt-2 border-t border-slate-800/80">
+                    <span class="text-xs font-bold text-slate-300 block">Sort By</span>
+                    <select id="sort-select" onchange="handleFilterChange()" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs font-semibold text-slate-200 focus:outline-none focus:border-rose-500">
+                        <option value="nearest">Nearest to Me (Distance)</option>
+                        <option value="cheapest">Lowest Starting Price</option>
+                        <option value="highest_rated">Highest Customer Rating</option>
+                        <option value="screens">Most Screens & Formats</option>
+                    </select>
+                </div>
+            </aside>
+
+            <!-- Right Panel: Interactive Cinematic Map (8 cols) -->
+            <section class="lg:col-span-8 bg-slate-900/60 border border-slate-800/80 backdrop-blur-2xl rounded-3xl p-4 shadow-2xl flex flex-col gap-4">
+                <div class="flex items-center justify-between px-2">
+                    <div class="flex items-center gap-2">
+                        <span class="w-2.5 h-2.5 rounded-full bg-rose-500 animate-ping"></span>
+                        <h2 class="text-xs font-black uppercase tracking-wider text-slate-300">Cinematic Live Map</h2>
+                    </div>
+                    <span class="text-[11px] text-slate-500 font-medium">Click markers for details & directions</span>
+                </div>
+
+                <!-- Leaflet Dark Map Container -->
+                <div class="w-full h-[480px] rounded-2xl overflow-hidden relative border border-slate-800">
+                    <div id="map"></div>
+                </div>
+            </section>
+        </div>
+
+        <!-- Cinema Comparison Results Cards Section -->
+        <section class="space-y-4">
+            <div class="flex items-center justify-between pb-2 border-b border-slate-800/60">
+                <h3 class="text-lg font-black tracking-tight text-white flex items-center gap-2">
+                    <i class="fa-solid fa-film text-rose-500"></i>
+                    <span>Available Theaters Near You</span>
+                </h3>
+                <span class="text-xs text-slate-400 font-medium">Showing active screens</span>
+            </div>
+
+            <!-- Dynamic Cinema Results Grid -->
+            <div id="cinemas-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                <!-- Injected via JavaScript -->
+            </div>
+        </section>
+
+    </main>
+
+    <!-- Glassmorphic Cinema Detail & Showtime Modal -->
+    <div id="cinema-detail-modal" class="fixed inset-0 z-50 bg-black/80 backdrop-blur-md hidden items-center justify-center p-4">
+        <div class="bg-slate-900/95 border border-slate-800 rounded-3xl max-w-2xl w-full max-h-[90vh] overflow-y-auto p-6 sm:p-8 shadow-2xl relative space-y-6 animate-fadeIn">
+            
+            <button onclick="closeCinemaModal()" class="absolute top-6 right-6 w-9 h-9 rounded-full bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white flex items-center justify-center transition">
+                <i class="fa-solid fa-xmark text-sm"></i>
+            </button>
+
+            <!-- Modal Header -->
+            <div class="flex flex-col sm:flex-row gap-5 items-start">
+                <img id="modal-cinema-img" src="" alt="Cinema" class="w-full sm:w-32 h-32 object-cover rounded-2xl border border-slate-700 shadow-md shrink-0">
+                <div class="space-y-1.5 flex-1">
+                    <div class="flex items-center gap-2 flex-wrap">
+                        <span id="modal-cinema-badge" class="px-2.5 py-0.5 rounded-full bg-rose-500/20 text-rose-400 border border-rose-500/30 text-[10px] font-bold">PREMIUM</span>
+                        <span id="modal-cinema-rating" class="text-xs font-black text-amber-400"><i class="fa-solid fa-star mr-1"></i>4.9</span>
+                        <span id="modal-cinema-distance" class="text-xs text-slate-400">• 1.8 km</span>
+                    </div>
+                    <h2 id="modal-cinema-name" class="text-xl sm:text-2xl font-black text-white">Cinema Name</h2>
+                    <p id="modal-cinema-address" class="text-xs text-slate-400 leading-relaxed">Full cinema address here</p>
+                </div>
+            </div>
+
+            <!-- Facilities & Formats Tags -->
+            <div class="space-y-3 pt-3 border-t border-slate-800">
+                <div>
+                    <span class="text-[10px] font-black uppercase tracking-wider text-slate-400 block mb-1.5">Supported Formats</span>
+                    <div id="modal-formats-container" class="flex flex-wrap gap-1.5"></div>
+                </div>
+                <div>
+                    <span class="text-[10px] font-black uppercase tracking-wider text-slate-400 block mb-1.5">Amenities</span>
+                    <div id="modal-facilities-container" class="flex flex-wrap gap-1.5"></div>
+                </div>
+            </div>
+
+            <!-- Showtimes Today -->
+            <div class="space-y-4 pt-3 border-t border-slate-800">
+                <h4 class="text-xs font-black uppercase tracking-wider text-white flex items-center gap-2">
+                    <i class="fa-regular fa-clock text-rose-500"></i>
+                    <span>Today's Available Shows</span>
+                </h4>
+                <div id="modal-shows-container" class="space-y-3">
+                    <!-- Dynamic Shows Grouped by Movie -->
+                </div>
+            </div>
+
+            <!-- Action Buttons: Directions & Close -->
+            <div class="pt-4 border-t border-slate-800 flex flex-col sm:flex-row gap-3">
+                <a id="modal-directions-btn" href="#" target="_blank" class="flex-1 bg-slate-800 hover:bg-slate-700 text-white text-xs font-bold py-3.5 px-4 rounded-xl flex items-center justify-center gap-2 transition">
+                    <i class="fa-solid fa-location-arrow text-rose-500"></i>
+                    <span>Get Directions (Google Maps)</span>
+                </a>
+                <button onclick="closeCinemaModal()" class="bg-rose-600 hover:bg-rose-500 text-white text-xs font-bold py-3.5 px-6 rounded-xl transition">
+                    Done
+                </button>
+            </div>
+
+        </div>
+    </div>
+
+    <!-- Core Script -->
+    <script>
+        let allCinemas = [];
+        let filteredCinemas = [];
+        let selectedFormats = new Set();
+        let map = null;
+        let markersGroup = null;
+
+        async function initPage() {
+            initLeafletMap();
+            await fetchCinemas();
+            applyFilters();
+        }
+
+        // Initialize Dark Matter CartoDB Leaflet Map
+        function initLeafletMap() {
+            map = L.map('map', {
+                center: [19.0760, 72.8777],
+                zoom: 11,
+                zoomControl: true
+            });
+
+            // Cinematic Dark Matter Tile Layer
+            L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+                attribution: '&copy; OpenStreetMap &copy; CARTO',
+                subdomains: 'abcd',
+                maxZoom: 19
+            }).addTo(map);
+
+            markersGroup = L.layerGroup().addTo(map);
+        }
+
+        async function fetchCinemas() {
+            try {
+                const res = await fetch('/api/cinemas');
+                allCinemas = await res.json();
+            } catch (err) {
+                console.error("Failed to load cinemas from backend:", err);
+                allCinemas = [];
+            }
+        }
+
+        // Filter & Sorting Computation
+        function applyFilters() {
+            const maxDistance = parseFloat(document.getElementById('distance-slider').value);
+            const maxPrice = parseFloat(document.getElementById('price-slider').value);
+            const sortBy = document.getElementById('sort-select').value;
+
+            const selectedFacilities = Array.from(document.querySelectorAll('.facility-checkbox:checked')).map(cb => cb.value);
+
+            filteredCinemas = allCinemas.filter(cinema => {
+                if (cinema.distance_km > maxDistance) return false;
+                if (cinema.starting_price > maxPrice) return false;
+
+                if (selectedFormats.size > 0) {
+                    const hasAllFormats = Array.from(selectedFormats).every(f => cinema.formats.includes(f));
+                    if (!hasAllFormats) return false;
+                }
+
+                if (selectedFacilities.length > 0) {
+                    const hasAllFacilities = selectedFacilities.every(fac => cinema.facilities.includes(fac));
+                    if (!hasAllFacilities) return false;
+                }
+
+                return true;
+            });
+
+            // Sorting
+            filteredCinemas.sort((a, b) => {
+                if (sortBy === 'nearest') return a.distance_km - b.distance_km;
+                if (sortBy === 'cheapest') return a.starting_price - b.starting_price;
+                if (sortBy === 'highest_rated') return b.rating - a.rating;
+                if (sortBy === 'screens') return b.screens_count - a.screens_count;
+                return 0;
+            });
+
+            document.getElementById('distance-val-display').innerText = `Within ${maxDistance} km`;
+            document.getElementById('price-val-display').innerText = `Up to ₹${maxPrice}`;
+            document.getElementById('cinema-count-badge').innerText = filteredCinemas.length;
+
+            renderMapMarkers();
+            renderCinemaCards();
+            updateBestMatch();
+        }
+
+        function handleFilterChange() {
+            applyFilters();
+        }
+
+        function toggleChip(button, format) {
+            if (selectedFormats.has(format)) {
+                selectedFormats.delete(format);
+                button.classList.remove('bg-rose-600', 'border-rose-500', 'text-white');
+                button.classList.add('bg-slate-950', 'border-slate-800', 'text-slate-400');
+            } else {
+                selectedFormats.add(format);
+                button.classList.add('bg-rose-600', 'border-rose-500', 'text-white');
+                button.classList.remove('bg-slate-950', 'border-slate-800', 'text-slate-400');
+            }
+            applyFilters();
+        }
+
+        // Render Glowing Custom HTML Markers
+        function renderMapMarkers() {
+            markersGroup.clearLayers();
+
+            filteredCinemas.forEach(cinema => {
+                const isPremium = cinema.formats.includes('IMAX') || cinema.rating >= 4.8;
+                
+                const customIcon = L.divIcon({
+                    className: `cinema-marker-icon marker-${cinema.cinema_id}`,
+                    html: `
+                        <div class="marker-pulse"></div>
+                        <div class="marker-pin ${isPremium ? 'premium-pin' : ''}">
+                            <i class="fa-solid ${isPremium ? 'fa-star' : 'fa-film'}"></i>
+                        </div>
+                    `,
+                    iconSize: [38, 38],
+                    iconAnchor: [19, 19]
+                });
+
+                const marker = L.marker([cinema.latitude, cinema.longitude], { icon: customIcon });
+
+                const popupContent = `
+                    <div class="p-3 space-y-1.5 w-48 text-left">
+                        <p class="font-extrabold text-xs text-white leading-tight">${cinema.cinema_name}</p>
+                        <div class="flex items-center gap-2 text-[10px] text-slate-300">
+                            <span class="text-amber-400 font-bold"><i class="fa-solid fa-star mr-0.5"></i>${cinema.rating}</span>
+                            <span>•</span>
+                            <span>${cinema.distance_km} km</span>
+                        </div>
+                        <p class="text-[10px] text-rose-400 font-bold">From ₹${cinema.starting_price}</p>
+                        <button onclick="openCinemaDetailModal(${cinema.cinema_id})" class="w-full mt-2 bg-rose-600 hover:bg-rose-500 py-1.5 rounded-lg text-[10px] font-bold text-white transition">
+                            View Showtimes
+                        </button>
+                    </div>
+                `;
+
+                marker.bindPopup(popupContent);
+                marker.on('click', () => {
+                    focusCinema(cinema.cinema_id, cinema.latitude, cinema.longitude);
+                });
+
+                markersGroup.addLayer(marker);
+            });
+
+            if (filteredCinemas.length > 0) {
+                const bounds = L.latLngBounds(filteredCinemas.map(c => [c.latitude, c.longitude]));
+                map.fitBounds(bounds, { padding: [40, 40] });
+            }
+        }
+
+        // Render Bottom Comparison Cards
+        function renderCinemaCards() {
+            const container = document.getElementById('cinemas-grid');
+            if (filteredCinemas.length === 0) {
+                container.innerHTML = `
+                    <div class="col-span-full py-16 text-center text-slate-500">
+                        <i class="fa-solid fa-film text-3xl mb-3 block"></i>
+                        <p class="text-sm font-bold">No cinemas found matching your exact filters.</p>
+                        <button onclick="resetAllFilters()" class="mt-3 text-xs text-rose-500 underline font-bold">Reset filters</button>
+                    </div>
+                `;
+                return;
+            }
+
+            container.innerHTML = filteredCinemas.map(c => `
+                <div class="bg-slate-900/60 border border-slate-800/80 rounded-3xl overflow-hidden backdrop-blur-xl shadow-xl flex flex-col justify-between hover:border-slate-700 transition duration-300 group">
+                    <div>
+                        <div class="relative h-44 w-full overflow-hidden">
+                            <img src="${c.image_url}" alt="${c.cinema_name}" class="w-full h-full object-cover group-hover:scale-105 transition duration-500">
+                            <div class="absolute inset-0 bg-gradient-to-t from-slate-950 via-transparent to-transparent"></div>
+                            
+                            <div class="absolute top-3 left-3 flex gap-1.5">
+                                ${c.badge ? `<span class="px-2.5 py-1 rounded-full bg-rose-600/90 backdrop-blur-md text-white text-[10px] font-black uppercase tracking-wider">${c.badge}</span>` : ''}
+                            </div>
+                            <div class="absolute top-3 right-3 bg-slate-950/80 backdrop-blur-md border border-slate-700/60 px-2 py-1 rounded-xl text-xs font-black text-amber-400 flex items-center gap-1">
+                                <i class="fa-solid fa-star text-[10px]"></i>
+                                <span>${c.rating}</span>
+                            </div>
+                            <div class="absolute bottom-3 left-3 flex items-center gap-1.5 text-xs text-slate-300 font-semibold">
+                                <i class="fa-solid fa-location-dot text-rose-500"></i>
+                                <span>${c.distance_km} km away • ${c.area}</span>
+                            </div>
+                        </div>
+
+                        <div class="p-5 space-y-3">
+                            <div>
+                                <h3 class="font-bold text-base text-white group-hover:text-rose-400 transition">${c.cinema_name}</h3>
+                                <p class="text-xs text-slate-400 line-clamp-1 mt-0.5">${c.address}</p>
+                            </div>
+
+                            <div class="flex flex-wrap gap-1.5">
+                                ${c.formats.map(f => `<span class="px-2 py-0.5 rounded-md bg-slate-950 border border-slate-800 text-[10px] font-bold text-slate-300">${f}</span>`).join('')}
+                            </div>
+
+                            <p class="text-[11px] text-slate-400 flex items-center gap-2">
+                                <i class="fa-solid fa-couch text-rose-400"></i>
+                                <span>${c.facilities.slice(0, 3).join(' • ')}</span>
+                            </p>
+                        </div>
+                    </div>
+
+                    <div class="p-5 pt-0 border-t border-slate-800/60 mt-4 flex items-center justify-between">
+                        <div>
+                            <span class="text-[10px] uppercase font-bold text-slate-500 block">Tickets From</span>
+                            <span class="text-base font-black text-white">₹${c.starting_price}</span>
+                        </div>
+                        <button onclick="openCinemaDetailModal(${c.cinema_id})" class="bg-rose-600 hover:bg-rose-500 text-white text-xs font-bold px-4 py-2.5 rounded-xl transition shadow-lg shadow-rose-950/40">
+                            View Showtimes
+                        </button>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function updateBestMatch() {
+            if (filteredCinemas.length === 0) return;
+            const topMatch = filteredCinemas[0];
+
+            document.getElementById('best-match-name').innerText = topMatch.cinema_name;
+            document.getElementById('best-match-reasons').innerText = `${topMatch.distance_km} km away • ${topMatch.formats.join(' • ')} • From ₹${topMatch.starting_price}`;
+            document.getElementById('best-match-action').setAttribute('onclick', `openCinemaDetailModal(${topMatch.cinema_id})`);
+        }
+
+        function focusCinema(id, lat, lng) {
+            map.flyTo([lat, lng], 14, { duration: 1.2 });
+        }
+
+        function applyPreset(type) {
+            resetAllFilters(false);
+            if (type === 'closest') {
+                document.getElementById('distance-slider').value = 4;
+                document.getElementById('sort-select').value = 'nearest';
+            } else if (type === 'cheapest') {
+                document.getElementById('price-slider').value = 250;
+                document.getElementById('sort-select').value = 'cheapest';
+            } else if (type === 'imax') {
+                selectedFormats.add('IMAX');
+            } else if (type === 'premium') {
+                document.querySelector('.facility-checkbox[value="Premium Seating"]').checked = true;
+            } else if (type === 'rating') {
+                document.getElementById('sort-select').value = 'highest_rated';
+            }
+            applyFilters();
+        }
+
+        function resetAllFilters(reApply = true) {
+            document.getElementById('distance-slider').value = 10;
+            document.getElementById('price-slider').value = 500;
+            document.getElementById('sort-select').value = 'nearest';
+            selectedFormats.clear();
+            document.querySelectorAll('.format-chip').forEach(c => {
+                c.classList.remove('bg-rose-600', 'border-rose-500', 'text-white');
+                c.classList.add('bg-slate-950', 'border-slate-800', 'text-slate-400');
+            });
+            document.querySelectorAll('.facility-checkbox').forEach(cb => cb.checked = false);
+            if (reApply) applyFilters();
+        }
+
+        async function openCinemaDetailModal(cinemaId) {
+            try {
+                const res = await fetch(`/api/cinemas/${cinemaId}/showtimes`);
+                const data = await res.json();
+
+                document.getElementById('modal-cinema-img').src = data.image_url;
+                document.getElementById('modal-cinema-name').innerText = data.cinema_name;
+                document.getElementById('modal-cinema-address').innerText = data.address;
+                document.getElementById('modal-cinema-rating').innerHTML = `<i class="fa-solid fa-star mr-1"></i>${data.rating}`;
+                document.getElementById('modal-cinema-distance').innerText = `• ${data.distance_km} km away`;
+                document.getElementById('modal-cinema-badge').innerText = data.badge || 'CINEHUB CERTIFIED';
+
+                document.getElementById('modal-formats-container').innerHTML = data.formats.map(f => `
+                    <span class="px-2.5 py-1 rounded-lg bg-slate-950 border border-slate-800 text-[11px] font-bold text-slate-200">${f}</span>
+                `).join('');
+                document.getElementById('modal-facilities-container').innerHTML = data.facilities.map(fac => `
+                    <span class="px-2.5 py-1 rounded-lg bg-slate-950 border border-slate-800 text-[11px] font-medium text-slate-400"><i class="fa-solid fa-check text-rose-500 mr-1"></i>${fac}</span>
+                `).join('');
+
+                document.getElementById('modal-directions-btn').href = `https://www.google.com/maps/dir/?api=1&destination=${data.latitude},${data.longitude}`;
+
+                const showsContainer = document.getElementById('modal-shows-container');
+                if (!data.movies || data.movies.length === 0) {
+                    showsContainer.innerHTML = `<p class="text-xs text-slate-500 italic">No available showtimes remaining today.</p>`;
+                } else {
+                    showsContainer.innerHTML = data.movies.map(m => `
+                        <div class="bg-slate-950/80 border border-slate-800/80 rounded-2xl p-4 flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
+                            <div class="flex items-center gap-3">
+                                <img src="${m.poster_url}" class="w-12 h-16 object-cover rounded-xl border border-slate-700">
+                                <div>
+                                    <h5 class="font-bold text-sm text-white">${m.title}</h5>
+                                    <p class="text-[11px] text-slate-400">${m.genre} • ${m.duration}</p>
+                                </div>
+                            </div>
+
+                            <div class="flex flex-wrap gap-2">
+                                ${m.showtimes.map(st => `
+                                    <button onclick="goToSeatBooking(${m.movie_id}, ${st.showtime_id})" class="bg-slate-900 hover:bg-rose-600 border border-slate-800 hover:border-rose-500 rounded-xl px-3 py-2 transition text-center group">
+                                        <span class="text-xs font-black text-white block">${st.time}</span>
+                                        <span class="text-[9px] font-semibold text-slate-400 group-hover:text-rose-200 block">${st.type} • ₹${st.price}</span>
+                                    </button>
+                                `).join('')}
+                            </div>
+                        </div>
+                    `).join('');
+                }
+
+                document.getElementById('cinema-detail-modal').classList.remove('hidden');
+                document.getElementById('cinema-detail-modal').classList.add('flex');
+            } catch (err) {
+                console.error("Failed to load showtimes modal:", err);
+            }
+        }
+
+        function closeCinemaModal() {
+            document.getElementById('cinema-detail-modal').classList.add('hidden');
+            document.getElementById('cinema-detail-modal').classList.remove('flex');
+        }
+
+        function goToSeatBooking(movieId, showtimeId) {
+            window.location.href = `/select-seats?movie_id=${movieId}&showtime_id=${showtimeId}`;
+        }
+
+        function changeLocationPrompt() {
+            const city = prompt("Enter your preferred city or locality (e.g. Mumbai, Pune, Thane, Delhi):", "Mumbai");
+            if (city) {
+                document.getElementById('current-city-label').innerText = `${city}, IN`;
+            }
+        }
+
+        window.onload = initPage;
+    </script>
+</body>
+</html>

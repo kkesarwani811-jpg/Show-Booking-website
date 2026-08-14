@@ -3,163 +3,131 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Digital Ticket - CineHub</title>
+    <title>Digital Ticket & QR Pass - CineHub</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script>tailwind.config = { darkMode: 'class' }</script>
-    <!-- QRCode.js Library for generating scannable QR codes -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
-    <!-- html2canvas for Download Ticket feature -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    
-    <style>body { font-family: 'Plus Jakarta Sans', sans-serif; }</style>
+    <style>
+        body { font-family: 'Plus Jakarta Sans', sans-serif; background-color: #050505; color: #f8fafc; }
+        .glass-pass { background: rgba(15, 23, 42, 0.85); backdrop-filter: blur(20px); border: 1px solid rgba(255, 255, 255, 0.1); }
+    </style>
 </head>
-<body class="min-h-screen bg-slate-950 text-slate-100 flex flex-col items-center justify-center p-6">
+<body class="min-h-screen flex flex-col items-center justify-center p-6">
 
-    <!-- Header -->
-    <header class="absolute top-0 left-0 w-full px-8 py-4 flex items-center justify-between border-b border-slate-900 bg-slate-950/80 backdrop-blur-md">
-        <a href="/" class="text-xl font-black text-[#b8000b] flex items-center gap-2">
-            <i class="fa-solid fa-film"></i><span>CineHub</span>
-        </a>
-        <a href="/" class="text-slate-400 hover:text-white text-xs font-bold flex items-center gap-2">
-            <i class="fa-solid fa-house"></i> Home
-        </a>
-    </header>
-
-    <!-- Main Ticket Wrapper -->
-    <main class="max-w-md w-full space-y-6 pt-12">
+    <div class="max-w-xl w-full glass-pass rounded-3xl p-8 shadow-2xl space-y-8 relative overflow-hidden">
         
-        <div class="text-center space-y-1">
-            <div class="w-12 h-12 rounded-full bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 flex items-center justify-center text-xl mx-auto mb-2 shadow-lg">
+        <!-- Success Header -->
+        <div class="text-center space-y-2">
+            <div class="w-16 h-16 rounded-full bg-emerald-950 border border-emerald-500/40 text-emerald-400 flex items-center justify-center mx-auto text-2xl shadow-lg">
                 <i class="fa-solid fa-check"></i>
             </div>
-            <h2 class="text-2xl font-black text-white">Booking Successful!</h2>
-            <p class="text-xs text-slate-400">Your digital pass is ready for cinema entry</p>
+            <h2 class="text-2xl font-black text-white">Digital Pass & QR Generated</h2>
+            <p class="text-xs text-slate-400">Scan this QR code at the cinema entry gate and snack counter.</p>
         </div>
 
-        <!-- THE PREMIUM DIGITAL TICKET CARD -->
-        <div id="digital-ticket-card" class="bg-gradient-to-b from-slate-900 to-slate-950 border border-slate-800 rounded-3xl p-6 shadow-2xl relative overflow-hidden text-slate-100 space-y-6">
-            
-            <!-- Ticket Header -->
-            <div class="flex items-center justify-between border-b border-slate-800 pb-4">
-                <div class="flex items-center gap-2">
-                    <div class="w-8 h-8 rounded-lg bg-[#b8000b] text-white flex items-center justify-center font-black text-xs">CH</div>
-                    <span class="font-black tracking-widest text-sm text-white">CINEHUB PASS</span>
-                </div>
-                <span class="text-[10px] font-extrabold bg-emerald-950/80 border border-emerald-800 text-emerald-400 px-3 py-1 rounded-full uppercase tracking-wider">CONFIRMED</span>
-            </div>
-
-            <!-- Movie Title -->
-            <div class="space-y-1">
-                <h3 id="ticket-movie-title" class="text-2xl font-black tracking-tight text-white uppercase">Dune: Part Two</h3>
-                <p id="ticket-theater" class="text-xs text-slate-400 font-medium">CineHub IMAX, Mumbai</p>
-            </div>
-
-            <!-- Grid Metadata (Screen, Showtime, Seats) -->
-            <div class="grid grid-cols-3 gap-4 bg-slate-950/60 p-4 rounded-2xl border border-slate-800/80 text-center">
+        <!-- Movie & Seat Pass -->
+        <div class="bg-slate-950 p-6 rounded-2xl border border-slate-800 space-y-4">
+            <div class="flex items-center gap-4">
+                <img id="pass-poster" src="https://images.unsplash.com/photo-1534447677768-be436bb09401?w=600&auto=format&fit=crop&q=80" class="w-16 h-24 object-cover rounded-xl">
                 <div>
-                    <span class="text-[10px] font-bold text-slate-500 uppercase block">Screen</span>
-                    <span class="text-sm font-black text-white">04</span>
+                    <span class="text-rose-500 font-extrabold text-[10px] uppercase tracking-wider">IMAX Laser • Confirmed</span>
+                    <h3 id="pass-title" class="text-lg font-black text-white">Dune: Part Two</h3>
+                    <p id="pass-showtime" class="text-xs text-slate-400 mt-0.5">CineHub IMAX, Mumbai • 07:00 PM</p>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-2 gap-4 pt-4 border-t border-slate-900 text-xs">
+                <div>
+                    <span class="text-slate-500 font-bold block">SEATS BOOKED</span>
+                    <span id="pass-seats" class="font-black text-white text-sm">F12, F13</span>
                 </div>
                 <div>
-                    <span class="text-[10px] font-bold text-slate-500 uppercase block">Showtime</span>
-                    <span id="ticket-time" class="text-sm font-black text-white">07:00 PM</span>
+                    <span class="text-slate-500 font-bold block">BOOKING ID</span>
+                    <span id="pass-booking-id" class="font-black text-rose-400 text-sm">CP-1048</span>
                 </div>
+            </div>
+
+            <!-- Entry QR Code -->
+            <div class="flex items-center justify-between pt-4 border-t border-slate-900">
+                <div class="space-y-1">
+                    <span class="text-[10px] text-slate-400 font-bold block">EXPRESS CINEMA ENTRY</span>
+                    <span class="text-xs font-mono font-black text-white">SCAN AT TURNSTILE</span>
+                </div>
+                <div class="bg-white p-2 rounded-xl shadow-lg">
+                    <img id="entry-qr" src="" alt="Entry QR Code" class="w-20 h-20">
+                </div>
+            </div>
+        </div>
+
+        <!-- FOOD ORDER PICKUP SECTION (If ordered) -->
+        <div id="food-section" class="bg-gradient-to-r from-amber-950/40 to-slate-950 p-6 rounded-2xl border border-amber-500/30 space-y-4 hidden">
+            <div class="flex items-center justify-between">
                 <div>
-                    <span class="text-[10px] font-bold text-slate-500 uppercase block">Seats</span>
-                    <span id="ticket-seats" class="text-sm font-black text-rose-500">F7, F8</span>
+                    <span class="px-2.5 py-1 rounded-md bg-amber-500 text-slate-950 font-black text-[9px] uppercase tracking-wider">🍿 SNACKS READY</span>
+                    <h4 class="font-extrabold text-sm text-white mt-1">Pickup Counter C-03</h4>
                 </div>
             </div>
-
-            <!-- QR Code Section -->
-            <div class="flex flex-col items-center justify-center pt-2 space-y-3">
-                <div id="qrcode-box" class="bg-white p-3 rounded-2xl shadow-inner flex items-center justify-center"></div>
-                <p id="ticket-booking-ref" class="text-xs font-mono font-bold text-slate-400 tracking-widest">BOOKING #CP82931</p>
+            <div id="food-items-list" class="space-y-2 pt-2 border-t border-amber-900/40 text-xs"></div>
+            <div class="flex items-center justify-between pt-3 border-t border-amber-900/40">
+                <div class="space-y-1">
+                    <span class="text-[10px] text-slate-400 font-bold block">FOOD QR CODE</span>
+                    <span class="text-xs font-mono font-black text-white">EXPRESS COUNTER PASS</span>
+                </div>
+                <div class="bg-white p-2 rounded-xl shadow-lg">
+                    <img id="food-qr" src="" alt="Food QR Code" class="w-20 h-20">
+                </div>
             </div>
-
-            <!-- Decorative Ticket Notches -->
-            <div class="absolute -left-4 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-slate-950 border border-slate-800"></div>
-            <div class="absolute -right-4 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-slate-950 border border-slate-800"></div>
         </div>
 
-        <!-- ACTION BUTTONS GRID -->
-        <div class="grid grid-cols-2 gap-3">
-            <button onclick="downloadTicketCard()" class="bg-slate-900 hover:bg-slate-800 border border-slate-800 text-slate-200 font-bold py-3 px-4 rounded-2xl text-xs transition flex items-center justify-center gap-2 cursor-pointer">
-                <i class="fa-solid fa-download text-rose-500"></i> Download Ticket
-            </button>
-            <button onclick="addToCalendar()" class="bg-slate-900 hover:bg-slate-800 border border-slate-800 text-slate-200 font-bold py-3 px-4 rounded-2xl text-xs transition flex items-center justify-center gap-2 cursor-pointer">
-                <i class="fa-solid fa-calendar-plus text-rose-500"></i> Add to Calendar
-            </button>
-            <button onclick="shareTicket()" class="col-span-2 bg-[#b8000b] hover:bg-[#a0000a] text-white font-extrabold py-3.5 px-4 rounded-2xl text-xs transition shadow-lg flex items-center justify-center gap-2 cursor-pointer">
-                <i class="fa-solid fa-share-nodes"></i> Share Ticket Pass
+        <!-- Action Buttons -->
+        <div class="flex gap-4 pt-2">
+            <a href="/booking-history" class="flex-1 bg-slate-900 hover:bg-slate-800 text-slate-200 font-bold py-3.5 rounded-2xl text-xs text-center transition">
+                Booking History
+            </a>
+            <button onclick="window.print()" class="flex-1 bg-[#b8000b] hover:bg-[#a0000a] text-white font-black py-3.5 rounded-2xl text-xs shadow-lg transition">
+                Print Pass
             </button>
         </div>
+    </div>
 
-        <div class="text-center pt-2">
-            <a href="/booking-history" class="text-xs text-slate-400 hover:text-white underline font-bold">View All My Bookings</a>
-        </div>
-    </main>
-
-    <!-- Script to Populate Dynamic Ticket Details -->
     <script>
         const urlParams = new URLSearchParams(window.location.search);
-        const bookingId = urlParams.get('booking_id') || 'CP82931';
+        const bookingId = parseInt(urlParams.get('booking_id')) || 1;
+        const seats = urlParams.get('seats') || 'F12';
         const movieTitle = urlParams.get('movie') || 'Dune: Part Two';
-        const seats = urlParams.get('seats') || 'F7, F8';
-        const showTime = urlParams.get('time') || '07:00 PM';
-        const theater = urlParams.get('theater') || 'CineHub IMAX, Mumbai';
 
         document.addEventListener('DOMContentLoaded', () => {
-            document.getElementById('ticket-movie-title').innerText = movieTitle;
-            document.getElementById('ticket-theater').innerText = theater;
-            document.getElementById('ticket-time').innerText = showTime;
-            document.getElementById('ticket-seats').innerText = seats;
-            document.getElementById('ticket-booking-ref').innerText = `BOOKING #${bookingId}`;
+            document.getElementById('pass-seats').innerText = seats;
+            document.getElementById('pass-booking-id').innerText = `CP-${bookingId}`;
+            document.getElementById('pass-title').innerText = movieTitle;
 
-            // Generate QR Code
-            new QRCode(document.getElementById("qrcode-box"), {
-                text: `CINEHUB-TICKET-REF-${bookingId}-SEATS-${seats}`,
-                width: 120,
-                height: 120,
-                colorDark : "#050505",
-                colorLight : "#ffffff",
-                correctLevel : QRCode.CorrectLevel.H
-            });
+            // Generate Entry QR Code URL
+            document.getElementById('entry-qr').src = `https://api.qrserver.com/v1/create-qr-code/?size=90x90&data=CINEHUB-TICKET-${bookingId}`;
+            document.getElementById('food-qr').src = `https://api.qrserver.com/v1/create-qr-code/?size=90x90&data=CINEHUB-FOOD-${bookingId}`;
+
+            fetch(`/api/bookings/${bookingId}`)
+                .then(r => r.json())
+                .then(data => {
+                    if (data.movie_title) document.getElementById('pass-title').innerText = data.movie_title;
+                    if (data.poster_url) document.getElementById('pass-poster').src = data.poster_url;
+                    if (data.seats_booked) document.getElementById('pass-seats').innerText = data.seats_booked;
+
+                    if (data.food_orders && data.food_orders.length > 0) {
+                        const foodSec = document.getElementById('food-section');
+                        const foodList = document.getElementById('food-items-list');
+                        foodSec.classList.remove('hidden');
+
+                        foodList.innerHTML = data.food_orders.map(fo => `
+                            <div class="flex justify-between items-center text-slate-200">
+                                <span class="font-bold">🍿 ${fo.item_name} ×${fo.quantity}</span>
+                                <span class="font-mono text-amber-400">₹${fo.total_price}</span>
+                            </div>
+                        `).join('');
+                    }
+                })
+                .catch(err => console.log("Loaded fallback ticket view."));
         });
-
-        function downloadTicketCard() {
-            const ticketElement = document.getElementById('digital-ticket-card');
-            html2canvas(ticketElement, { backgroundColor: '#090d16', scale: 2 }).then(canvas => {
-                const link = document.createElement('a');
-                link.download = `CineHub-Ticket-${bookingId}.png`;
-                link.href = canvas.toDataURL('image/png');
-                link.click();
-            });
-        }
-
-        function addToCalendar() {
-            const title = encodeURIComponent(`Movie: ${movieTitle} at CineHub`);
-            const details = encodeURIComponent(`Seats: ${seats} | Booking ID: #${bookingId}`);
-            const location = encodeURIComponent(theater);
-            
-            // Generate standard Google Calendar URL
-            const calendarUrl = `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${title}&details=${details}&location=${location}`;
-            window.open(calendarUrl, '_blank');
-        }
-
-        function shareTicket() {
-            if (navigator.share) {
-                navigator.share({
-                    title: 'CineHub Movie Ticket',
-                    text: `I just booked tickets for ${movieTitle} (${seats}) at CineHub!`,
-                    url: window.location.href,
-                }).catch(() => {});
-            } else {
-                navigator.clipboard.writeText(window.location.href);
-                alert("📋 Ticket link copied to clipboard!");
-            }
-        }
     </script>
 </body>
 </html>

@@ -1,12 +1,9 @@
-﻿from flask import Flask, jsonify, request, render_template, session
-from flask_cors import CORS
+﻿from flask import Flask, jsonify, request, render_template
+from flask_cors import CORS, cross_origin
 import sqlite3
-import datetime
-import re
-import uuid
+import json
 
 app = Flask(__name__)
-app.secret_key = 'cinehub_super_secret_key'
 CORS(app)
 
 def get_db_connection():
@@ -14,433 +11,233 @@ def get_db_connection():
     conn.row_factory = sqlite3.Row
     return conn
 
-def parse_youtube_url(url):
-    if not url:
-        return ""
-    if "embed/" in url:
-        return url
-    video_id = ""
-    if "youtu.be/" in url:
-        video_id = url.split("youtu.be/")[1].split("?")[0]
-    elif "watch?v=" in url:
-        match = re.search(r"v=([a-zA-Z0-9_-]+)", url)
-        if match:
-            video_id = match.group(1)
-    if video_id:
-        return f"https://www.youtube.com/embed/{video_id}?autoplay=1&mute=1&loop=1&controls=0&showinfo=0&autohide=1&modestbranding=1&playlist={video_id}"
-    return url
-
-# --- CENTRALIZED REWARD SERVICE & TIER CONFIGURATION ---
-TIER_THRESHOLDS = {
-    'BRONZE': {'min': 0, 'max': 499, 'multiplier': 1.0, 'name': 'Bronze', 'color': '#b45309'},
-    'SILVER': {'min': 500, 'max': 1499, 'multiplier': 1.1, 'name': 'Silver', 'color': '#94a3b8'},
-    'GOLD': {'min': 1500, 'max': 2999, 'multiplier': 1.25, 'name': 'Gold', 'color': '#eab308'},
-    'PLATINUM': {'min': 3000, 'max': 999999, 'multiplier': 1.5, 'name': 'Platinum', 'color': '#38bdf8'}
-}
-
-def get_user_tier(points):
-    if points >= 3000:
-        return 'PLATINUM'
-    elif points >= 1500:
-        return 'GOLD'
-    elif points >= 500:
-        return 'SILVER'
-    return 'BRONZE'
-
-def award_points(user_id, base_points, reason, reference_type=None, reference_id=None):
+def init_all_dbs():
     conn = get_db_connection()
-    cursor = conn.cursor()
-    
-    # Get user current points & tier multiplier
-    user = cursor.execute("SELECT reward_points FROM users WHERE user_id = ?", (user_id,)).fetchone()
-    if not user:
-        conn.close()
-        return
-    
-    current_pts = user['reward_points'] or 0
-    tier_key = get_user_tier(current_pts)
-    multiplier = TIER_THRESHOLDS[tier_key]['multiplier']
-    
-    final_points = int(round(base_points * multiplier))
-    new_total = current_pts + final_points
+    # 1. Movies Table
+    conn.execute('''
+        CREATE TABLE IF NOT EXISTS movies (
+            movie_id INTEGER PRIMARY KEY AUTOINCREMENT,
+            title TEXT NOT NULL,
+            poster_url TEXT,
+            genre TEXT,
+            duration TEXT,
+            rating REAL,
+            trailer_url TEXT
+        )
+    ''')
+    if conn.execute('SELECT COUNT(*) FROM movies').fetchone()[0] == 0:
+        conn.executemany('''
+            INSERT INTO movies (title, poster_url, genre, duration, rating, trailer_url) VALUES (?, ?, ?, ?, ?, ?)
+        ''', [
+            ('Dune: Part Two', 'https://images.unsplash.com/photo-1534447677768-be436bb09401?w=500', 'Sci-Fi / Adventure', '2h 46m', 8.9, 'https://www.youtube.com/embed/Way9Dexny3w'),
+            ('Interstellar', 'https://images.unsplash.com/photo-1506703719100-a0f3a48c0f86?w=500', 'Sci-Fi / Drama', '2h 49m', 8.7, 'https://www.youtube.com/embed/zSWdZVtXT7E'),
+            ('Oppenheimer', 'https://images.unsplash.com/photo-1578849278619-e73505e9610f?w=500', 'Biography / Drama', '3h 00m', 8.9, 'https://www.youtube.com/embed/uYPbbksJxIg'),
+            ('The Dark Knight', 'https://images.unsplash.com/photo-1509198397868-475647b2a1e5?w=500', 'Action / Crime', '2h 32m', 9.0, 'https://www.youtube.com/embed/EXeTwQWrcwY')
+        ])
 
-    # Update user points balance
-    cursor.execute("UPDATE users SET reward_points = ? WHERE user_id = ?", (new_total, user_id))
+    # 2. Food Items Table
+    conn.execute('''
+        CREATE TABLE IF NOT EXISTS food_items (
+            item_id INTEGER PRIMARY KEY AUTOINCREMENT,
+            name TEXT NOT NULL,
+            category TEXT NOT NULL,
+            price REAL NOT NULL,
+            image_url TEXT
+        )
+    ''')
+    if conn.execute('SELECT COUNT(*) FROM food_items').fetchone()[0] == 0:
+        conn.executemany('''
+            INSERT INTO food_items (name, category, price, image_url) VALUES (?, ?, ?, ?)
+        ''', [
+            ('Large Butter Popcorn', 'Popcorn', 250, 'https://images.unsplash.com/photo-1578849278619-e73505e9610f?w=400'),
+            ('Chilled Coca-Cola (Large)', 'Drinks', 150, 'https://images.unsplash.com/photo-1622483767028-3f66f32aef97?w=400'),
+            ('Cheese Nachos Supreme', 'Snacks', 220, 'https://images.unsplash.com/photo-1582169226686-4f4c2e5b88c3?w=400'),
+            ('Chocolate Brownie Sundae', 'Desserts', 280, 'https://images.unsplash.com/photo-1551024709-8f23befc6f87?w=400')
+        ])
 
-    # Log in ledger transaction
-    cursor.execute("""
-        INSERT INTO reward_transactions (user_id, points, transaction_type, reason, reference_type, reference_id)
-        VALUES (?, ?, 'EARN', ?, ?, ?)
-    """, (user_id, final_points, reason, reference_type, reference_id))
+    # 3. Cinemas Table
+    conn.execute('''
+        CREATE TABLE IF NOT EXISTS cinemas (
+            cinema_id INTEGER PRIMARY KEY AUTOINCREMENT,
+            cinema_name TEXT NOT NULL,
+            city TEXT NOT NULL,
+            area TEXT NOT NULL,
+            latitude REAL NOT NULL,
+            longitude REAL NOT NULL,
+            address TEXT NOT NULL,
+            rating REAL NOT NULL,
+            distance_km REAL NOT NULL,
+            formats TEXT NOT NULL,
+            facilities TEXT NOT NULL,
+            premium_seating INTEGER DEFAULT 1,
+            parking INTEGER DEFAULT 1,
+            starting_price REAL NOT NULL,
+            badge TEXT,
+            screens_count INTEGER NOT NULL,
+            image_url TEXT NOT NULL
+        )
+    ''')
+    if conn.execute('SELECT COUNT(*) FROM cinemas').fetchone()[0] == 0:
+        conn.executemany('''
+            INSERT INTO cinemas (cinema_name, city, area, latitude, longitude, address, rating, distance_km, formats, facilities, premium_seating, parking, starting_price, badge, screens_count, image_url) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ''', [
+            ('CineMax IMAX Luxe', 'Mumbai', 'Lower Parel', 18.9950, 72.8258, 'High Street Phoenix, Senapati Bapat Marg, Lower Parel, Mumbai', 4.9, 1.8, '["IMAX", "4DX", "Dolby Atmos", "3D"]', '["Premium Seating", "Recliner Seats", "Dolby Atmos", "Parking", "Food Court", "Wheelchair Accessible"]', 1, 1, 280, '✦ PREMIUM EXPERIENCE', 6, 'https://images.unsplash.com/photo-1489599849927-2ee91cede3ba?w=700'),
+            ('PVR ICON Gold', 'Mumbai', 'Andheri West', 19.1363, 72.8311, 'Infinity Mall, New Link Rd, Andheri West, Mumbai', 4.8, 3.4, '["Dolby Atmos", "4DX", "3D", "2D"]', '["Recliner Seats", "Dolby Atmos", "Parking", "Food Court", "Wheelchair Accessible"]', 1, 1, 320, '🏆 TOP RATED', 8, 'https://images.unsplash.com/photo-1517604931442-7e0c8ed2963c?w=700'),
+            ('INOX Megaplex Laser', 'Mumbai', 'Malad West', 19.1765, 72.8362, 'Inorbit Mall, Link Rd, Malad West, Mumbai', 4.6, 5.2, '["IMAX", "Dolby Atmos", "3D", "2D"]', '["Premium Seating", "Parking", "Food Court", "Wheelchair Accessible"]', 1, 1, 220, '🔥 MOST POPULAR', 11, 'https://images.unsplash.com/photo-1595769816263-9b910be24d5f?w=700'),
+            ('Cinepolis VIP Grand', 'Mumbai', 'Thane West', 19.2183, 72.9781, 'Viviana Mall, Eastern Express Hwy, Thane West, Mumbai', 4.7, 7.8, '["Dolby Atmos", "4DX", "3D"]', '["Premium Seating", "Recliner Seats", "Parking", "Food Court"]', 1, 1, 260, '✦ LUXE COMFORT', 7, 'https://images.unsplash.com/photo-1524712245354-2c4e5e7121c0?w=700'),
+            ('Carnival Cinemas Metro', 'Mumbai', 'Marine Lines', 18.9416, 72.8277, 'Dhobi Talao, Marine Lines, Mumbai', 4.3, 8.5, '["2D", "3D", "Dolby Atmos"]', '["Food Court", "Wheelchair Accessible"]', 0, 0, 150, None, 4, 'https://images.unsplash.com/photo-1507676184212-d03ab07a01bf?w=700')
+        ])
 
-    conn.commit()
-    conn.close()
-    return final_points
+    # 4. Showtimes Table
+    conn.execute('''
+        CREATE TABLE IF NOT EXISTS showtimes (
+            showtime_id INTEGER PRIMARY KEY AUTOINCREMENT,
+            cinema_id INTEGER,
+            movie_id INTEGER,
+            theater_name TEXT,
+            show_time TEXT,
+            screen_type TEXT,
+            price REAL
+        )
+    ''')
+    if conn.execute('SELECT COUNT(*) FROM showtimes').fetchone()[0] == 0:
+        conn.executemany('''
+            INSERT INTO showtimes (cinema_id, movie_id, theater_name, show_time, screen_type, price) VALUES (?, ?, ?, ?, ?, ?)
+        ''', [
+            (1, 1, 'CineMax IMAX Luxe', '10:00 AM', 'IMAX 3D', 350),
+            (1, 1, 'CineMax IMAX Luxe', '01:30 PM', 'IMAX 3D', 400),
+            (1, 1, 'CineMax IMAX Luxe', '07:00 PM', 'IMAX 3D (Prime)', 450),
+            (1, 2, 'CineMax IMAX Luxe', '09:45 PM', 'IMAX 70mm', 420),
+            (2, 1, 'PVR ICON Gold', '11:15 AM', 'Dolby Atmos', 320),
+            (2, 1, 'PVR ICON Gold', '04:30 PM', '4DX 3D', 420),
+            (2, 3, 'PVR ICON Gold', '08:15 PM', 'Dolby Atmos', 380),
+            (3, 1, 'INOX Megaplex Laser', '12:00 PM', 'IMAX 3D', 280),
+            (3, 4, 'INOX Megaplex Laser', '06:30 PM', 'Laser 4K', 250),
+            (4, 1, 'Cinepolis VIP Grand', '02:00 PM', '4DX', 350),
+            (5, 1, 'Carnival Cinemas Metro', '03:00 PM', 'Standard 2D', 180)
+        ])
 
-def init_db():
-    conn = get_db_connection()
-    cursor = conn.cursor()
-    
-    cursor.execute('''CREATE TABLE IF NOT EXISTS users (
-        user_id INTEGER PRIMARY KEY AUTOINCREMENT,
-        full_name TEXT,
-        email TEXT UNIQUE,
-        password TEXT,
-        reward_points INTEGER DEFAULT 150,
-        referral_code TEXT,
-        birthday TEXT,
-        last_login_date TEXT
-    )''')
-
-    cursor.execute('''CREATE TABLE IF NOT EXISTS movies (
-        movie_id INTEGER PRIMARY KEY AUTOINCREMENT,
-        title TEXT,
-        genre TEXT,
-        duration_mins INTEGER,
-        rating REAL,
-        description TEXT,
-        poster_url TEXT,
-        trailer_url TEXT
-    )''')
-
-    cursor.execute('''CREATE TABLE IF NOT EXISTS showtimes (
-        showtime_id INTEGER PRIMARY KEY AUTOINCREMENT,
-        movie_id INTEGER,
-        theater_name TEXT,
-        show_time TEXT,
-        price REAL
-    )''')
-
-    cursor.execute('''CREATE TABLE IF NOT EXISTS bookings (
-        booking_id INTEGER PRIMARY KEY AUTOINCREMENT,
-        user_id INTEGER,
-        movie_id INTEGER,
-        showtime_id INTEGER,
-        seats_booked TEXT,
-        total_amount REAL,
-        discount_applied REAL DEFAULT 0,
-        group_code TEXT,
-        status TEXT DEFAULT 'CONFIRMED',
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-    )''')
-
-    # Rewards & Loyalty Tables
-    cursor.execute('''CREATE TABLE IF NOT EXISTS reward_transactions (
-        transaction_id INTEGER PRIMARY KEY AUTOINCREMENT,
-        user_id INTEGER,
-        points INTEGER,
-        transaction_type TEXT,
-        reason TEXT,
-        reference_type TEXT,
-        reference_id INTEGER,
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-    )''')
-
-    cursor.execute('''CREATE TABLE IF NOT EXISTS rewards (
-        reward_id INTEGER PRIMARY KEY AUTOINCREMENT,
-        title TEXT,
-        description TEXT,
-        points_required INTEGER,
-        reward_type TEXT,
-        reward_value REAL,
-        minimum_tier TEXT DEFAULT 'BRONZE',
-        active INTEGER DEFAULT 1
-    )''')
-
-    cursor.execute('''CREATE TABLE IF NOT EXISTS user_rewards (
-        user_reward_id INTEGER PRIMARY KEY AUTOINCREMENT,
-        user_id INTEGER,
-        reward_id INTEGER,
-        points_spent INTEGER,
-        redemption_code TEXT UNIQUE,
-        status TEXT DEFAULT 'ACTIVE',
-        claimed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        used_at TIMESTAMP
-    )''')
-
-    cursor.execute('''CREATE TABLE IF NOT EXISTS user_achievements (
-        achievement_id INTEGER PRIMARY KEY AUTOINCREMENT,
-        user_id INTEGER,
-        badge_key TEXT,
-        unlocked_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        UNIQUE(user_id, badge_key)
-    )''')
-
-    cursor.execute('''CREATE TABLE IF NOT EXISTS referrals (
-        referral_id INTEGER PRIMARY KEY AUTOINCREMENT,
-        referrer_id INTEGER,
-        referee_email TEXT,
-        status TEXT DEFAULT 'PENDING',
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-    )''')
-
-    # Safe Migrations
-    for col, definition in [('referral_code', 'TEXT'), ('birthday', 'TEXT'), ('last_login_date', 'TEXT')]:
-        try:
-            cursor.execute(f"ALTER TABLE users ADD COLUMN {col} {definition}")
-        except sqlite3.OperationalError:
-            pass
-
-    # Seed Default Rewards Catalog
-    cursor.execute("SELECT COUNT(*) FROM rewards")
-    if cursor.fetchone()[0] == 0:
-        sample_rewards = [
-            ("₹50 OFF", "Get ₹50 flat discount on your next movie ticket booking.", 500, "DISCOUNT", 50, "BRONZE"),
-            ("₹100 OFF", "Save ₹100 on any prime time cinematic screening.", 900, "DISCOUNT", 100, "SILVER"),
-            ("₹150 OFF", "Exclusive ₹150 discount for loyal cinema fans.", 1250, "DISCOUNT", 150, "GOLD"),
-            ("₹300 OFF", "Massive ₹300 discount on IMAX and Recliner tickets.", 2000, "DISCOUNT", 300, "GOLD"),
-            ("FREE TICKET", "Complimentary movie pass valid for any standard show.", 3000, "FREE_TICKET", 350, "PLATINUM")
-        ]
-        cursor.executemany("INSERT INTO rewards (title, description, points_required, reward_type, reward_value, minimum_tier) VALUES (?, ?, ?, ?, ?, ?)", sample_rewards)
-        conn.commit()
-
-    # Seed Default Movies & Showtimes
-    cursor.execute("SELECT COUNT(*) FROM movies")
-    if cursor.fetchone()[0] == 0:
-        sample_movies = [
-            ("Dune: Part Two", "Sci-Fi / Action", 166, 8.8, 
-             "Paul Atreides unites with Chani and the Fremen while seeking revenge against the conspirators who destroyed his family.", 
-             "https://images.unsplash.com/photo-1534447677768-be436bb09401?w=1200&auto=format&fit=crop&q=80", 
-             "https://www.youtube.com/watch?v=Way9Dexny3w"),
-            
-            ("Interstellar", "Sci-Fi / Adventure", 169, 8.7, 
-             "A team of explorers travel through a wormhole in space in an attempt to ensure humanity's survival.", 
-             "https://images.unsplash.com/photo-1451187580459-43490279c0fa?w=1200&auto=format&fit=crop&q=80", 
-             "https://www.youtube.com/watch?v=zSWdZVtXT7E")
-        ]
-        cursor.executemany("INSERT INTO movies (title, genre, duration_mins, rating, description, poster_url, trailer_url) VALUES (?, ?, ?, ?, ?, ?, ?)", sample_movies)
-        conn.commit()
-
-    cursor.execute("SELECT movie_id FROM movies")
-    movies = cursor.fetchall()
-    for m in movies:
-        mid = m['movie_id']
-        st = cursor.execute("SELECT COUNT(*) FROM showtimes WHERE movie_id = ?", (mid,)).fetchone()[0]
-        if st == 0:
-            cursor.execute("INSERT INTO showtimes (movie_id, theater_name, show_time, price) VALUES (?, 'CineHub IMAX, Mumbai', '07:00 PM', 350)", (mid,))
-
-    # Seed default user with referral code
-    cursor.execute("INSERT OR IGNORE INTO users (user_id, full_name, email, password, reward_points, referral_code) VALUES (1, 'John Doe', 'john@gmail.com', '123456', 1850, 'CINEJOHN')")
+    # 5. Bookings Table
+    conn.execute('''
+        CREATE TABLE IF NOT EXISTS bookings (
+            booking_id INTEGER PRIMARY KEY AUTOINCREMENT,
+            movie_id INTEGER,
+            showtime_id INTEGER,
+            seats_booked TEXT,
+            total_amount REAL,
+            status TEXT,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+    ''')
     conn.commit()
     conn.close()
 
-init_db()
+init_all_dbs()
 
-# --- HTML FRONTEND ROUTES ---
+# ----------------- PAGE ROUTES -----------------
 @app.route('/')
-def home():
-    return render_template('index.html')
+def home(): return render_template('index.html')
 
-@app.route('/login')
-def login_page():
-    return render_template('login.html')
-
-@app.route('/admin')
-def admin_dashboard():
-    return render_template('admin_dashboard.html')
-
-@app.route('/search')
-def search_page():
-    return render_template('search_results.html')
+@app.route('/cinema-explorer')
+@app.route('/cinemas')
+def cinema_explorer_page(): return render_template('cinema_explorer.html')
 
 @app.route('/pick-showtime')
-def pick_showtime():
-    return render_template('pick_showtime.html')
+def pick_showtime(): return render_template('pick_showtime.html')
 
 @app.route('/select-seats')
-def select_seats():
-    return render_template('select_seats.html')
+def select_seats(): return render_template('select_seats.html')
+
+@app.route('/food-snacks')
+def food_snacks_page(): return render_template('food_snacks.html')
 
 @app.route('/booking-history')
-def booking_history():
-    return render_template('booking_history.html')
+def booking_history(): return render_template('booking_history.html')
 
 @app.route('/digital-ticket')
-def digital_ticket():
-    return render_template('digital_ticket.html')
+def digital_ticket(): return render_template('digital_ticket.html')
 
 @app.route('/rewards')
-def rewards_page():
-    return render_template('rewards.html')
+def rewards_page(): return render_template('rewards.html')
 
-# --- REWARDS & LOYALTY REST APIS ---
+@app.route('/admin')
+def admin_page(): return render_template('admin_dashboard.html')
 
-@app.route('/api/users/<int:user_id>/rewards', methods=['GET'])
-def get_user_rewards_dashboard(user_id):
+@app.route('/search')
+def search():
+    query = request.args.get('q', '').lower()
     conn = get_db_connection()
-    user = conn.execute("SELECT reward_points FROM users WHERE user_id = ?", (user_id,)).fetchone()
-    if not user:
-        conn.close()
-        return jsonify({'error': 'User not found'}), 404
-
-    points = user['reward_points'] or 0
-    tier_key = get_user_tier(points)
-    tier_info = TIER_THRESHOLDS[tier_key]
-
-    # Calculate progress to next tier
-    next_tier_name = 'Platinum'
-    points_needed = 0
-    progress_pct = 100
-
-    if tier_key == 'BRONZE':
-        next_tier_name = 'Silver'
-        points_needed = 500 - points
-        progress_pct = int((points / 500) * 100)
-    elif tier_key == 'SILVER':
-        next_tier_name = 'Gold'
-        points_needed = 1500 - points
-        progress_pct = int(((points - 500) / 1000) * 100)
-    elif tier_key == 'GOLD':
-        next_tier_name = 'Platinum'
-        points_needed = 3000 - points
-        progress_pct = int(((points - 1500) / 1500) * 100)
-    else:
-        progress_pct = 100
-        points_needed = 0
-        next_tier_name = 'Max Tier'
-
-    # Lifetime earned & redeemed
-    earned_row = conn.execute("SELECT SUM(points) as total FROM reward_transactions WHERE user_id = ? AND transaction_type = 'EARN'", (user_id,)).fetchone()
-    redeemed_row = conn.execute("SELECT SUM(ABS(points)) as total FROM reward_transactions WHERE user_id = ? AND transaction_type = 'REDEEM'", (user_id,)).fetchone()
-    
-    lifetime_earned = earned_row['total'] or points
-    lifetime_redeemed = redeemed_row['total'] or 0
-
-    # Next available reward
-    next_reward = conn.execute("SELECT title, points_required FROM rewards WHERE points_required > ? AND active = 1 ORDER BY points_required ASC LIMIT 1", (points,)).fetchone()
-
+    movies = conn.execute("SELECT * FROM movies WHERE LOWER(title) LIKE ? OR LOWER(genre) LIKE ?", 
+                           ('%'+query+'%', '%'+query+'%')).fetchall()
     conn.close()
-    return jsonify({
-        'points': points,
-        'tier': tier_key,
-        'tier_name': tier_info['name'],
-        'multiplier': tier_info['multiplier'],
-        'progress_pct': min(100, max(0, progress_pct)),
-        'points_needed': max(0, points_needed),
-        'next_tier_name': next_tier_name,
-        'lifetime_earned': lifetime_earned,
-        'lifetime_redeemed': lifetime_redeemed,
-        'streak': 7,
-        'next_reward': dict(next_reward) if next_reward else {'title': 'VIP Access', 'points_required': 3000}
-    })
+    return render_template('search_results.html', movies=[dict(m) for m in movies], query=query)
 
-@app.route('/api/users/<int:user_id>/reward-history', methods=['GET'])
-def get_user_reward_history(user_id):
+# ----------------- API ROUTES -----------------
+@app.route('/api/cinemas', methods=['GET'])
+@cross_origin()
+def get_cinemas():
     conn = get_db_connection()
-    txns = conn.execute("SELECT * FROM reward_transactions WHERE user_id = ? ORDER BY transaction_id DESC LIMIT 20", (user_id,)).fetchall()
+    cinemas = conn.execute('SELECT * FROM cinemas').fetchall()
+    result = []
+    for c in cinemas:
+        item = dict(c)
+        try:
+            item['formats'] = json.loads(item['formats'])
+            item['facilities'] = json.loads(item['facilities'])
+        except Exception:
+            item['formats'] = ['2D', '3D']
+            item['facilities'] = ['Standard']
+        result.append(item)
     conn.close()
-    return jsonify([dict(t) for t in txns])
+    return jsonify(result)
 
-@app.route('/api/rewards', methods=['GET'])
-def get_rewards_catalog():
+@app.route('/api/cinemas/<int:cinema_id>/showtimes', methods=['GET'])
+@cross_origin()
+def get_cinema_showtimes(cinema_id):
     conn = get_db_connection()
-    rewards = conn.execute("SELECT * FROM rewards WHERE active = 1 ORDER BY points_required ASC").fetchall()
+    cinema = conn.execute('SELECT * FROM cinemas WHERE cinema_id = ?', (cinema_id,)).fetchone()
+    if not cinema:
+        conn.close()
+        return jsonify({'error': 'Cinema not found'}), 404
+
+    shows = conn.execute('''
+        SELECT s.showtime_id, s.show_time, s.screen_type, s.price,
+               m.movie_id, m.title as movie_title, m.poster_url, m.genre, m.duration, m.rating
+        FROM showtimes s
+        JOIN movies m ON s.movie_id = m.movie_id
+        WHERE s.cinema_id = ?
+        ORDER BY m.title, s.show_time
+    ''', (cinema_id,)).fetchall()
+
+    grouped_movies = {}
+    for s in shows:
+        mid = s['movie_id']
+        if mid not in grouped_movies:
+            grouped_movies[mid] = {
+                'movie_id': mid,
+                'title': s['movie_title'],
+                'poster_url': s['poster_url'],
+                'genre': s['genre'],
+                'duration': s['duration'],
+                'rating': s['rating'],
+                'showtimes': []
+            }
+        grouped_movies[mid]['showtimes'].append({
+            'showtime_id': s['showtime_id'],
+            'time': s['show_time'],
+            'type': s['screen_type'],
+            'price': s['price']
+        })
+
+    cinema_data = dict(cinema)
+    cinema_data['formats'] = json.loads(cinema_data['formats'])
+    cinema_data['facilities'] = json.loads(cinema_data['facilities'])
+    cinema_data['movies'] = list(grouped_movies.values())
     conn.close()
-    return jsonify([dict(r) for r in rewards])
-
-@app.route('/api/rewards/<int:reward_id>/redeem', methods=['POST'])
-def redeem_reward(reward_id):
-    data = request.get_json() or {}
-    user_id = data.get('user_id', 1)
-
-    conn = get_db_connection()
-    cursor = conn.cursor()
-
-    user = cursor.execute("SELECT reward_points FROM users WHERE user_id = ?", (user_id,)).fetchone()
-    reward = cursor.execute("SELECT * FROM rewards WHERE reward_id = ? AND active = 1", (reward_id,)).fetchone()
-
-    if not user or not reward:
-        conn.close()
-        return jsonify({'error': 'Invalid user or reward'}), 400
-
-    current_points = user['reward_points'] or 0
-    cost = reward['points_required']
-
-    if current_points < cost:
-        conn.close()
-        return jsonify({'error': 'Insufficient points balance'}), 400
-
-    # Generate secure unique redemption code
-    redemption_code = f"CINE-{uuid.uuid4().hex[:4].upper()}-{uuid.uuid4().hex[:4].upper()}"
-
-    try:
-        # Deduct points
-        cursor.execute("UPDATE users SET reward_points = reward_points - ? WHERE user_id = ?", (cost, user_id))
-        
-        # Log in ledger
-        cursor.execute("""
-            INSERT INTO reward_transactions (user_id, points, transaction_type, reason, reference_type, reference_id)
-            VALUES (?, ?, 'REDEEM', ?, 'REWARD', ?)
-        """, (user_id, -cost, f"Redeemed {reward['title']}", reward_id))
-
-        # Save user reward claim
-        cursor.execute("""
-            INSERT INTO user_rewards (user_id, reward_id, points_spent, redemption_code, status)
-            VALUES (?, ?, ?, ?, 'ACTIVE')
-        """, (user_id, reward_id, cost, redemption_code))
-
-        conn.commit()
-        conn.close()
-        return jsonify({
-            'message': 'Reward successfully redeemed!',
-            'redemption_code': redemption_code,
-            'reward_title': reward['title'],
-            'remaining_points': current_points - cost
-        }), 201
-    except Exception as e:
-        conn.rollback()
-        conn.close()
-        return jsonify({'error': str(e)}), 500
-
-@app.route('/api/users/<int:user_id>/achievements', methods=['GET'])
-def get_user_achievements(user_id):
-    conn = get_db_connection()
-    unlocked = {row['badge_key'] for row in conn.execute("SELECT badge_key FROM user_achievements WHERE user_id = ?", (user_id,)).fetchall()}
-    conn.close()
-
-    badges = [
-        {'key': 'first_movie', 'title': 'First Movie', 'desc': 'Book your first movie ticket', 'unlocked': 'first_movie' in unlocked, 'progress': '100%'},
-        {'key': 'movie_buff', 'title': 'Movie Buff', 'desc': 'Watch 5 movies on CineHub', 'unlocked': 'movie_buff' in unlocked, 'progress': '60%'},
-        {'key': 'critic', 'title': 'Critic', 'desc': 'Write 5 helpful movie reviews', 'unlocked': 'critic' in unlocked, 'progress': '40%'},
-        {'key': 'weekend_warrior', 'title': 'Weekend Warrior', 'desc': 'Book screenings across 3 weekends', 'unlocked': 'weekend_warrior' in unlocked, 'progress': '30%'},
-        {'key': 'vip', 'title': 'VIP Platinum', 'desc': 'Reach Platinum membership tier', 'unlocked': 'vip' in unlocked, 'progress': '80%'}
-    ]
-    return jsonify(badges)
-
-@app.route('/api/referrals', methods=['POST'])
-def process_referral():
-    data = request.get_json() or {}
-    user_id = data.get('user_id', 1)
-    ref_code = data.get('referral_code', '').strip().upper()
-
-    conn = get_db_connection()
-    cursor = conn.cursor()
-    referrer = cursor.execute("SELECT user_id FROM users WHERE referral_code = ?", (ref_code,)).fetchone()
-    
-    if not referrer:
-        conn.close()
-        return jsonify({'error': 'Invalid referral code'}), 400
-
-    ref_id = referrer['user_id']
-    if ref_id == user_id:
-        conn.close()
-        return jsonify({'error': 'Cannot refer yourself'}), 400
-
-    # Award 100 points to referrer securely via reward service
-    award_points(ref_id, 100, f"Referral bonus for user #{user_id}", 'REFERRAL', user_id)
-    conn.close()
-    return jsonify({'message': 'Referral code applied successfully! Referrer rewarded.'}), 200
-
-# --- EXISTING BOOKING & MOVIE APIS (PRESERVED & INTEGRATED) ---
-
-@app.route('/api/featured-movies', methods=['GET'])
-def get_featured_movies():
-    conn = get_db_connection()
-    movies = conn.execute("SELECT * FROM movies ORDER BY rating DESC LIMIT 4").fetchall()
-    conn.close()
-    return jsonify([dict(m) for m in movies])
+    return jsonify(cinema_data)
 
 @app.route('/api/movies', methods=['GET'])
+@cross_origin()
 def get_movies():
     conn = get_db_connection()
     movies = conn.execute('SELECT * FROM movies').fetchall()
@@ -448,108 +245,78 @@ def get_movies():
     return jsonify([dict(m) for m in movies])
 
 @app.route('/api/movies/<int:movie_id>', methods=['GET'])
+@cross_origin()
 def get_movie_detail(movie_id):
     conn = get_db_connection()
     movie = conn.execute('SELECT * FROM movies WHERE movie_id = ?', (movie_id,)).fetchone()
     conn.close()
-    if not movie:
-        return jsonify({'error': 'Not found'}), 404
+    if not movie: return jsonify({'error': 'Not found'}), 404
     return jsonify(dict(movie))
 
 @app.route('/api/movies/<int:movie_id>/showtimes', methods=['GET'])
-def get_showtimes(movie_id):
+@cross_origin()
+def get_movie_showtimes(movie_id):
     conn = get_db_connection()
     showtimes = conn.execute('SELECT * FROM showtimes WHERE movie_id = ?', (movie_id,)).fetchall()
     conn.close()
-    return jsonify([dict(st) for st in showtimes])
+    if not showtimes:
+        return jsonify([
+            {'showtime_id': 1, 'theater_name': 'CineMax IMAX Luxe', 'show_time': '10:00 AM', 'price': 350},
+            {'showtime_id': 2, 'theater_name': 'PVR ICON Gold', 'show_time': '01:30 PM', 'price': 320},
+            {'showtime_id': 3, 'theater_name': 'INOX Megaplex Laser', 'show_time': '07:00 PM', 'price': 450}
+        ])
+    return jsonify([dict(s) for s in showtimes])
+
+@app.route('/api/food-items', methods=['GET'])
+@cross_origin()
+def get_food_items():
+    conn = get_db_connection()
+    items = conn.execute('SELECT * FROM food_items').fetchall()
+    conn.close()
+    return jsonify([dict(i) for i in items])
 
 @app.route('/api/bookings', methods=['POST'])
+@cross_origin()
 def create_booking():
-    try:
-        data = request.get_json() or {}
-        user_id = data.get('user_id', 1)
-        movie_id = data.get('movie_id', 1)
-        showtime_id = data.get('showtime_id', 1)
-        seats = data.get('seats', [])
-        total_amount = float(data.get('total_amount', 0))
-        group_code = data.get('group_code', '')
-        redemption_code = data.get('redemption_code', '').strip()
-
-        conn = get_db_connection()
-        cursor = conn.cursor()
-
-        discount_applied = 0.0
-        # Backend validation of reward redemption code
-        if redemption_code:
-            user_reward = cursor.execute("""
-                -ur.*, r.reward_value, r.reward_type 
-                FROM user_rewards ur 
-                JOIN rewards r ON ur.reward_id = r.reward_id 
-                WHERE ur.redemption_code = ? AND ur.user_id = ? AND ur.status = 'ACTIVE'
-            """, (redemption_code, user_id)).fetchone()
-            
-            if user_reward:
-                discount_applied = float(user_reward['reward_value'])
-                total_amount = max(0.0, total_amount - discount_applied)
-                # Mark reward as used
-                cursor.execute("UPDATE user_rewards SET status = 'USED', used_at = CURRENT_TIMESTAMP WHERE user_reward_id = ?", (user_reward['user_reward_id'],))
-
-        cursor.execute('''INSERT INTO bookings (user_id, movie_id, showtime_id, seats_booked, total_amount, discount_applied, group_code, status) 
-                          VALUES (?, ?, ?, ?, ?, ?, ?, 'CONFIRMED')''',
-                       (user_id, movie_id, showtime_id, ",".join(str(s) for s in seats), total_amount, discount_applied, group_code))
-        booking_id = cursor.lastrowid
-        conn.commit()
-        conn.close()
-
-        # Award points for booking (+10 points per ticket) via centralized reward service
-        tickets_count = max(1, len(seats))
-        award_points(user_id, tickets_count * 10, f"Movie ticket booking (#{booking_id})", 'BOOKING', booking_id)
-
-        return jsonify({'booking_id': booking_id, 'final_amount': total_amount, 'discount_applied': discount_applied}), 201
-    except Exception as e:
-        return jsonify({'error': str(e)}), 400
-
-@app.route('/api/users/<path:user_identifier>/bookings', methods=['GET'])
-def get_user_bookings(user_identifier):
+    data = request.get_json() or {}
     conn = get_db_connection()
-    query = """
-        SELECT b.booking_id, b.seats_booked, b.total_amount, b.discount_applied, b.status, b.created_at,
+    cursor = conn.cursor()
+    cursor.execute("""
+        INSERT INTO bookings (movie_id, showtime_id, seats_booked, total_amount, status)
+        VALUES (?, ?, ?, ?, ?)
+    """, (
+        data.get('movie_id', 1),
+        data.get('showtime_id', 1),
+        str(data.get('seats', 'A1, A2')),
+        data.get('total_amount', 630),
+        'Confirmed'
+    ))
+    conn.commit()
+    booking_id = cursor.lastrowid
+    conn.close()
+    return jsonify({'success': True, 'booking_id': booking_id})
+
+@app.route('/api/users/<int:user_id>/bookings', methods=['GET'])
+@cross_origin()
+def get_user_bookings(user_id):
+    conn = get_db_connection()
+    bookings = conn.execute("""
+        SELECT b.booking_id, b.seats_booked, b.total_amount, b.status, b.created_at,
                m.title as movie_title, m.poster_url, m.genre,
-               COALESCE(s.theater_name, 'CineHub IMAX, Mumbai') as theater_name, 
-               COALESCE(s.show_time, '07:00 PM') as show_time, 
-               'CP-' || b.booking_id as transaction_ref
+               COALESCE(s.theater_name, 'CineHub IMAX') as theater_name, 
+               COALESCE(s.show_time, '07:00 PM') as show_time
         FROM bookings b
         LEFT JOIN movies m ON b.movie_id = m.movie_id
         LEFT JOIN showtimes s ON b.showtime_id = s.showtime_id
         ORDER BY b.booking_id DESC
-    """
-    bookings = conn.execute(query).fetchall()
+    """).fetchall()
     conn.close()
-    return jsonify([dict(b) for b in bookings]), 200
+    return jsonify([dict(b) for b in bookings])
 
-@app.route('/api/bookings/<int:booking_id>/cancel', methods=['POST'])
-def cancel_booking(booking_id):
-    conn = get_db_connection()
-    cursor = conn.cursor()
-    cursor.execute("UPDATE bookings SET status = 'CANCELLED' WHERE booking_id = ?", (booking_id,))
-    conn.commit()
-    conn.close()
-    return jsonify({'booking_id': booking_id}), 200
-
-@app.route('/api/admin/rewards-stats', methods=['GET'])
-def admin_rewards_stats():
-    conn = get_db_connection()
-    total_issued = conn.execute("SELECT SUM(points) as total FROM reward_transactions WHERE transaction_type = 'EARN'").fetchone()['total'] or 1250400
-    total_redeemed = conn.execute("SELECT SUM(ABS(points)) as total FROM reward_transactions WHERE transaction_type = 'REDEEM'").fetchone()['total'] or 680200
-    active_rewards = conn.execute("SELECT COUNT(*) as count FROM rewards WHERE active = 1").fetchone()['count'] or 5
-    platinum_count = conn.execute("SELECT COUNT(*) as count FROM users WHERE reward_points >= 3000").fetchone()['count'] or 284
-    conn.close()
-    return jsonify({
-        'total_issued': total_issued,
-        'total_redeemed': total_redeemed,
-        'active_rewards': active_rewards,
-        'platinum_members': platinum_count
-    })
+@app.route('/api/users/<int:user_id>/rewards', methods=['GET'])
+@cross_origin()
+def get_user_rewards(user_id):
+    return jsonify({'points': 1850, 'tier_name': 'Gold', 'multiplier': 1.25})
 
 if __name__ == '__main__':
     app.run(debug=True, port=5000)

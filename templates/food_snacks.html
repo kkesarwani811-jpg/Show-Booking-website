@@ -1,0 +1,38 @@
+﻿<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <title>CineHub - Snacks</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-[#050505] text-white p-8">
+    <h2 class="text-2xl font-black mb-6">Select Snacks</h2>
+    <div id="food-grid" class="grid grid-cols-2 md:grid-cols-4 gap-6"></div>
+    <div class="mt-8 p-4 bg-slate-900 rounded-lg">
+        <h3 class="font-bold">Your Order Cart: <span id="cart-count">0</span> items</h3>
+        <button onclick="window.location.href='/payment'" class="mt-4 bg-green-600 px-6 py-2 rounded-lg font-bold">Proceed to Payment</button>
+    </div>
+
+    <script>
+        let cart = [];
+        function addToCart(name, price) {
+            cart.push({ name, price });
+            document.getElementById('cart-count').innerText = cart.length;
+            alert(name + " added to your cart!");
+        }
+
+        async function fetchSnacks() {
+            const res = await fetch('/api/food-items');
+            const data = await res.json();
+            document.getElementById('food-grid').innerHTML = data.map(i => `
+                <div class="bg-slate-900 p-4 rounded-xl border border-slate-800">
+                    <h4 class="font-bold text-sm">${i.name}</h4>
+                    <p class="text-rose-500 font-bold text-sm">₹${i.price}</p>
+                    <button type="button" onclick="addToCart('${i.name}', ${i.price})" class="w-full mt-3 bg-rose-700 py-2 rounded-lg text-xs font-bold">Add to Order</button>
+                </div>
+            `).join('');
+        }
+        fetchSnacks();
+    </script>
+</body>
+</html>

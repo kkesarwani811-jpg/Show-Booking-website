@@ -1,0 +1,394 @@
+﻿<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Movie Detail & Professional Reviews - CineHub</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>tailwind.config = { darkMode: 'class' }</script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/animejs/3.2.1/anime.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <style>
+        body { font-family: 'Plus Jakarta Sans', sans-serif; background-color: #080808; color: #f8fafc; }
+        .glass-card { background: rgba(15, 23, 42, 0.75); backdrop-filter: blur(16px); border: 1px solid rgba(255, 255, 255, 0.08); }
+        .spoiler-blur { filter: blur(6px); user-select: none; transition: filter 0.3s ease; }
+        .spoiler-revealed { filter: none; user-select: auto; }
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col">
+
+    <!-- Navbar -->
+    <header class="bg-slate-950/80 backdrop-blur-md border-b border-slate-900 sticky top-0 z-50 px-6 py-4">
+        <div class="flex items-center justify-between max-w-[1200px] mx-auto">
+            <a href="/" class="text-2xl font-black text-[#b8000b] flex items-center gap-2">
+                <i class="fa-solid fa-film"></i><span>CineHub</span>
+            </a>
+            <a href="/" class="text-xs font-bold text-slate-400 hover:text-white transition flex items-center gap-2">
+                <i class="fa-solid fa-arrow-left"></i> Back to Home
+            </a>
+        </div>
+    </header>
+
+    <main class="max-w-[1000px] w-full mx-auto px-6 py-10 space-y-12 flex-1">
+        
+        <!-- Movie Banner -->
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-8 items-center glass-card p-6 rounded-3xl">
+            <img id="m-poster" src="" class="w-full aspect-[2/3] object-cover rounded-2xl shadow-xl">
+            <div class="md:col-span-2 space-y-4">
+                <span id="m-genre" class="px-3 py-1 rounded-full bg-rose-950 border border-rose-800 text-rose-400 text-[10px] font-black uppercase">Genre</span>
+                <h1 id="m-title" class="text-3xl md:text-5xl font-black text-white">Loading Movie...</h1>
+                <p id="m-desc" class="text-xs text-slate-300 leading-relaxed">Loading synopsis...</p>
+                <div class="flex items-center gap-4 pt-2">
+                    <a id="book-ticket-link" href="#" class="bg-[#b8000b] hover:bg-[#a0000a] text-white font-extrabold px-8 py-3.5 rounded-xl text-xs transition shadow-lg inline-flex items-center gap-2 cursor-pointer">
+                        <i class="fa-solid fa-ticket"></i> Book Tickets
+                    </a>
+                </div>
+            </div>
+        </div>
+
+        <!-- PROFESSIONAL REVIEWS & RATING SUMMARY SECTION -->
+        <section class="glass-card p-8 rounded-3xl space-y-8">
+            
+            <div class="flex items-center justify-between border-b border-slate-800 pb-6">
+                <div>
+                    <h2 class="text-2xl font-black text-white">Reviews & Ratings</h2>
+                    <p class="text-xs text-slate-400 mt-0.5">Verified audience feedback and ratings</p>
+                </div>
+                <button onclick="openReviewModal()" class="bg-amber-500 hover:bg-amber-400 text-slate-950 font-black px-6 py-3 rounded-2xl text-xs transition shadow-lg cursor-pointer">
+                    <i class="fa-solid fa-pen mr-1.5"></i> Write a Review
+                </button>
+            </div>
+
+            <!-- Rating Summary Card & Distribution -->
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-8 items-center bg-slate-950/60 p-6 rounded-3xl border border-slate-800/80">
+                <div class="text-center space-y-2 border-b md:border-b-0 md:border-r border-slate-800 pb-6 md:pb-0 md:pr-6">
+                    <div id="summary-avg" class="text-5xl font-black text-amber-400">0.0</div>
+                    <div class="text-amber-400 text-sm">★★★★★</div>
+                    <p id="summary-total" class="text-xs text-slate-400 font-bold">0 Reviews</p>
+                    <p id="summary-recommend" class="text-xs font-extrabold text-emerald-400 pt-1">0% would recommend</p>
+                </div>
+
+                <div class="md:col-span-2 space-y-2">
+                    <span class="text-xs font-black text-slate-300 uppercase tracking-wider block mb-3">Rating Distribution</span>
+                    <div class="space-y-2 text-xs">
+                        <div class="flex items-center gap-3"><span class="w-10 text-slate-400 font-bold">5 Star</span><div class="flex-1 h-2.5 bg-slate-900 rounded-full overflow-hidden"><div id="dist-bar-5" class="h-full bg-amber-400 w-0 transition-all duration-1000"></div></div><span id="dist-cnt-5" class="w-8 text-right text-slate-400">0</span></div>
+                        <div class="flex items-center gap-3"><span class="w-10 text-slate-400 font-bold">4 Star</span><div class="flex-1 h-2.5 bg-slate-900 rounded-full overflow-hidden"><div id="dist-bar-4" class="h-full bg-amber-400 w-0 transition-all duration-1000"></div></div><span id="dist-cnt-4" class="w-8 text-right text-slate-400">0</span></div>
+                        <div class="flex items-center gap-3"><span class="w-10 text-slate-400 font-bold">3 Star</span><div class="flex-1 h-2.5 bg-slate-900 rounded-full overflow-hidden"><div id="dist-bar-3" class="h-full bg-amber-400 w-0 transition-all duration-1000"></div></div><span id="dist-cnt-3" class="w-8 text-right text-slate-400">0</span></div>
+                        <div class="flex items-center gap-3"><span class="w-10 text-slate-400 font-bold">2 Star</span><div class="flex-1 h-2.5 bg-slate-900 rounded-full overflow-hidden"><div id="dist-bar-2" class="h-full bg-amber-400 w-0 transition-all duration-1000"></div></div><span id="dist-cnt-2" class="w-8 text-right text-slate-400">0</span></div>
+                        <div class="flex items-center gap-3"><span class="w-10 text-slate-400 font-bold">1 Star</span><div class="flex-1 h-2.5 bg-slate-900 rounded-full overflow-hidden"><div id="dist-bar-1" class="h-full bg-amber-400 w-0 transition-all duration-1000"></div></div><span id="dist-cnt-1" class="w-8 text-right text-slate-400">0</span></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Filter Chips & Search Bar -->
+            <div class="flex flex-col md:flex-row items-center justify-between gap-4 pt-2">
+                <div class="flex flex-wrap items-center gap-2 w-full md:w-auto overflow-x-auto no-scrollbar pb-2">
+                    <button onclick="setStarFilter('all')" class="filter-chip px-4 py-2 rounded-xl bg-amber-500 text-slate-950 font-extrabold text-xs transition cursor-pointer">All</button>
+                    <button onclick="setStarFilter('5')" class="filter-chip px-4 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 text-slate-300 font-bold text-xs transition cursor-pointer">5★</button>
+                    <button onclick="setStarFilter('4')" class="filter-chip px-4 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 text-slate-300 font-bold text-xs transition cursor-pointer">4★</button>
+                    <button onclick="setStarFilter('3')" class="filter-chip px-4 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 text-slate-300 font-bold text-xs transition cursor-pointer">3★</button>
+                    <button onclick="setStarFilter('verified')" class="filter-chip px-4 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 text-emerald-400 font-bold text-xs transition cursor-pointer">✓ Verified</button>
+                </div>
+
+                <div class="flex items-center gap-3 w-full md:w-auto">
+                    <div class="relative flex-1 md:w-48">
+                        <input type="text" id="search-reviews" oninput="debounceSearch()" placeholder="Search reviews..." class="w-full bg-slate-950 border border-slate-800 text-white text-xs px-3.5 py-2.5 rounded-xl outline-none focus:border-amber-500">
+                    </div>
+                    <select id="sort-select" onchange="loadReviews()" class="bg-slate-950 border border-slate-800 text-white text-xs font-bold px-3 py-2.5 rounded-xl outline-none focus:border-amber-500">
+                        <option value="helpful">Most Helpful</option>
+                        <option value="newest">Newest</option>
+                        <option value="oldest">Oldest</option>
+                        <option value="highest">Highest Rated</option>
+                        <option value="lowest">Lowest Rated</option>
+                    </select>
+                </div>
+            </div>
+
+            <!-- Reviews List Container -->
+            <div id="reviews-list" class="space-y-4">
+                <div class="text-center py-12 text-slate-500 font-bold">Loading reviews...</div>
+            </div>
+
+            <!-- Pagination / Load More -->
+            <div id="load-more-box" class="text-center pt-4 hidden">
+                <button onclick="loadMoreReviews()" class="bg-slate-900 hover:bg-slate-800 border border-slate-800 text-white font-bold px-8 py-3 rounded-2xl text-xs transition cursor-pointer">
+                    Load More Reviews
+                </button>
+            </div>
+        </section>
+    </main>
+
+    <!-- WRITE REVIEW MODAL -->
+    <div id="review-modal" class="fixed inset-0 z-50 hidden flex items-center justify-center bg-black/80 backdrop-blur-md p-4">
+        <div class="glass-card max-w-md w-full p-6 rounded-3xl border border-slate-800 space-y-5 shadow-2xl">
+            <div class="flex items-center justify-between">
+                <h3 class="text-lg font-black text-white">Write a Review</h3>
+                <button onclick="closeReviewModal()" class="text-slate-400 hover:text-white"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+
+            <!-- Interactive Stars -->
+            <div class="space-y-1.5 text-center py-2">
+                <span class="text-xs font-bold text-slate-400 block">Your Rating</span>
+                <div class="flex justify-center gap-2 text-2xl text-amber-400 cursor-pointer" id="star-rating-container">
+                    <i class="fa-solid fa-star" data-val="1" onclick="selectRating(1)" onmouseover="hoverRating(1)"></i>
+                    <i class="fa-solid fa-star" data-val="2" onclick="selectRating(2)" onmouseover="hoverRating(2)"></i>
+                    <i class="fa-solid fa-star" data-val="3" onclick="selectRating(3)" onmouseover="hoverRating(3)"></i>
+                    <i class="fa-solid fa-star" data-val="4" onclick="selectRating(4)" onmouseover="hoverRating(4)"></i>
+                    <i class="fa-solid fa-star" data-val="5" onclick="selectRating(5)" onmouseover="hoverRating(5)"></i>
+                </div>
+                <span id="rating-text-label" class="text-xs font-black text-amber-400">5/5 Masterpiece</span>
+            </div>
+
+            <div class="space-y-1.5">
+                <label class="text-xs font-bold text-slate-400">Your Review</label>
+                <textarea id="review-text-input" rows="4" oninput="updateCharCount()" placeholder="What did you think about this movie?" class="w-full bg-slate-950 border border-slate-800 text-white text-xs p-3 rounded-xl outline-none focus:border-amber-500"></textarea>
+                <div class="flex justify-between text-[10px] text-slate-500">
+                    <span>Minimum 5 characters</span>
+                    <span id="char-count">0 / 1000</span>
+                </div>
+            </div>
+
+            <div class="flex items-center gap-2">
+                <input type="checkbox" id="spoiler-checkbox" class="rounded accent-amber-500">
+                <label for="spoiler-checkbox" class="text-xs font-bold text-slate-300">⚠ Contains Spoilers</label>
+            </div>
+
+            <div class="flex gap-3 pt-2">
+                <button onclick="closeReviewModal()" class="flex-1 bg-slate-800 hover:bg-slate-700 text-white font-bold py-3 rounded-xl text-xs transition cursor-pointer">Cancel</button>
+                <button onclick="submitReview()" class="flex-1 bg-amber-500 hover:bg-amber-400 text-slate-950 font-black py-3 rounded-xl text-xs transition cursor-pointer">Submit Review</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Script -->
+    <script>
+        const urlParams = new URLSearchParams(window.location.search);
+        const movieId = parseInt(urlParams.get('movie_id')) || 1;
+        
+        let currentPage = 1;
+        let currentStarFilter = 'all';
+        let selectedRatingValue = 5;
+        let searchTimeout = null;
+
+        document.addEventListener('DOMContentLoaded', () => {
+            fetch(`/api/movies/${movieId}`)
+                .then(r => r.json())
+                .then(movie => {
+                    document.getElementById('m-title').innerText = movie.title;
+                    document.getElementById('m-genre').innerText = movie.genre;
+                    document.getElementById('m-desc').innerText = movie.description;
+                    document.getElementById('m-poster').src = movie.poster_url;
+                    document.getElementById('book-ticket-link').href = `/pick-showtime?movie_id=${movie.movie_id}`;
+                });
+
+            loadRatingSummary();
+            loadReviews();
+        });
+
+        function loadRatingSummary() {
+            fetch(`/api/movies/${movieId}/rating-summary`)
+                .then(r => r.json())
+                .then(data => {
+                    document.getElementById('summary-avg').innerText = data.average_rating;
+                    document.getElementById('summary-total').innerText = `${data.total_reviews} Reviews`;
+                    document.getElementById('summary-recommend').innerText = `${data.recommendation_percentage}% would recommend`;
+
+                    const max = Math.max(...Object.values(data.distribution), 1);
+                    for (let i = 1; i <= 5; i++) {
+                        const count = data.distribution[i] || 0;
+                        document.getElementById(`dist-cnt-${i}`).innerText = count;
+                        const pct = (count / max) * 100;
+                        document.getElementById(`dist-bar-${i}`).style.width = `${pct}%`;
+                    }
+                });
+        }
+
+        function loadReviews(reset = true) {
+            if (reset) currentPage = 1;
+            const sort = document.getElementById('sort-select').value;
+            const q = document.getElementById('search-reviews').value;
+
+            fetch(`/api/movies/${movieId}/reviews?page=${currentPage}&limit=5&sort=${sort}&star=${currentStarFilter}&q=${encodeURIComponent(q)}`)
+                .then(r => r.json())
+                .then(data => {
+                    const container = document.getElementById('reviews-list');
+                    if (!data.reviews || data.reviews.length === 0) {
+                        container.innerHTML = `
+                            <div class="text-center py-12 space-y-3 bg-slate-950/40 rounded-2xl border border-slate-800">
+                                <i class="fa-solid fa-film text-3xl text-slate-600"></i>
+                                <h4 class="text-sm font-bold text-white">No reviews yet</h4>
+                                <p class="text-xs text-slate-400">Be the first person to share your experience!</p>
+                                <button onclick="openReviewModal()" class="mt-2 bg-amber-500 text-slate-950 font-black px-5 py-2.5 rounded-xl text-xs">Write the First Review</button>
+                            </div>`;
+                        document.getElementById('load-more-box').classList.add('hidden');
+                        return;
+                    }
+
+                    const html = data.reviews.map(r => {
+                        // Generate deterministic avatar initials
+                        const initials = r.full_name ? r.full_name.split(' ').map(n => n[0]).join('').substring(0,2).toUpperCase() : 'CH';
+                        const reviewTextId = `review-txt-${r.review_id}`;
+
+                        return `
+                            <div class="bg-slate-950/60 p-5 rounded-2xl border border-slate-800/80 space-y-3">
+                                <div class="flex items-center justify-between">
+                                    <div class="flex items-center gap-3">
+                                        <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-rose-600 to-amber-500 text-white flex items-center justify-center font-black text-xs shadow-md">
+                                            ${initials}
+                                        </div>
+                                        <div>
+                                            <h4 class="font-extrabold text-sm text-white">${r.full_name}</h4>
+                                            <div class="flex items-center gap-2 mt-0.5">
+                                                <span class="text-amber-400 text-xs">${'★'.repeat(r.rating)}${'☆'.repeat(5 - r.rating)}</span>
+                                                ${r.is_verified ? '<span class="px-2 py-0.5 rounded-md bg-emerald-950 border border-emerald-800 text-emerald-400 text-[9px] font-black uppercase">✓ Verified Booking</span>' : ''}
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <span class="text-[10px] text-slate-500">${r.created_at || 'Recently'}</span>
+                                </div>
+
+                                <!-- Spoiler Protection Box -->
+                                ${r.is_spoiler ? `
+                                    <div class="bg-slate-900/80 p-3 rounded-xl border border-rose-900/40 space-y-2">
+                                        <div class="flex items-center justify-between text-[11px] text-rose-400 font-bold">
+                                            <span>⚠ Contains Spoilers</span>
+                                            <button onclick="revealSpoiler(${r.review_id})" id="reveal-btn-${r.review_id}" class="bg-rose-950 hover:bg-rose-900 px-3 py-1 rounded-lg text-white cursor-pointer transition">Reveal Review</button>
+                                        </div>
+                                        <p id="${reviewTextId}" class="text-xs text-slate-300 spoiler-blur">"${r.review_text}"</p>
+                                    </div>
+                                ` : `
+                                    <p class="text-xs text-slate-300 leading-relaxed pl-13">"${r.review_text}"</p>
+                                `}
+
+                                <div class="flex items-center justify-between pt-1">
+                                    <button onclick="reportReview(${r.review_id})" class="text-[10px] font-bold text-slate-500 hover:text-slate-300 cursor-pointer">Report</button>
+                                    <button onclick="markHelpful(${r.review_id})" class="bg-slate-900 hover:bg-slate-800 border border-slate-800 text-slate-300 px-3 py-1.5 rounded-xl text-[11px] font-bold transition flex items-center gap-1.5 cursor-pointer">
+                                        <i class="fa-regular fa-thumbs-up text-rose-500"></i> Helpful (${r.helpful_count})
+                                    </button>
+                                </div>
+                            </div>
+                        `;
+                    }).join('');
+
+                    if (reset) {
+                        container.innerHTML = html;
+                    } else {
+                        container.insertAdjacentHTML('beforeend', html);
+                    }
+
+                    if (data.has_more) {
+                        document.getElementById('load-more-box').classList.remove('hidden');
+                    } else {
+                        document.getElementById('load-more-box').classList.add('hidden');
+                    }
+                });
+        }
+
+        function loadMoreReviews() {
+            currentPage++;
+            loadReviews(false);
+        }
+
+        function setStarFilter(star) {
+            currentStarFilter = star;
+            document.querySelectorAll('.filter-chip').forEach(btn => {
+                btn.className = "filter-chip px-4 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 text-slate-300 font-bold text-xs transition cursor-pointer";
+            });
+            event.target.className = "filter-chip px-4 py-2 rounded-xl bg-amber-500 text-slate-950 font-extrabold text-xs transition cursor-pointer";
+            loadReviews(true);
+        }
+
+        function debounceSearch() {
+            clearTimeout(searchTimeout);
+            searchTimeout = setTimeout(() => loadReviews(true), 300);
+        }
+
+        function revealSpoiler(reviewId) {
+            const txt = document.getElementById(`review-txt-${reviewId}`);
+            const btn = document.getElementById(`reveal-btn-${reviewId}`);
+            txt.classList.remove('spoiler-blur');
+            txt.classList.add('spoiler-revealed');
+            btn.style.display = 'none';
+        }
+
+        function markHelpful(reviewId) {
+            const user = JSON.parse(localStorage.getItem('currentUser')) || { user_id: 1 };
+            fetch(`/api/reviews/${reviewId}/helpful`, {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({ user_id: user.user_id })
+            })
+            .then(r => r.json())
+            .then(() => loadReviews(false));
+        }
+
+        function reportReview(reviewId) {
+            const user = JSON.parse(localStorage.getItem('currentUser')) || { user_id: 1 };
+            const reason = prompt("Reason for reporting (Spam, Spoiler, Offensive):", "Spam");
+            if (!reason) return;
+            fetch(`/api/reviews/${reviewId}/report`, {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({ user_id: user.user_id, reason: reason })
+            }).then(() => alert("Review reported to moderators. Thank you!"));
+        }
+
+        // Modal interactions
+        function openReviewModal() { document.getElementById('review-modal').classList.remove('hidden'); }
+        function closeReviewModal() { document.getElementById('review-modal').classList.add('hidden'); }
+
+        function selectRating(val) {
+            selectedRatingValue = val;
+            const labels = ["1/5 Poor", "2/5 Below Expectations", "3/5 Average", "4/5 Great Watch", "5/5 Masterpiece"];
+            document.getElementById('rating-text-label').innerText = labels[val-1];
+            document.querySelectorAll('#star-rating-container i').forEach((star, idx) => {
+                if (idx < val) star.style.color = '#fbbf24';
+                else star.style.color = '#475569';
+            });
+        }
+
+        function hoverRating(val) {
+            document.querySelectorAll('#star-rating-container i').forEach((star, idx) => {
+                if (idx < val) star.style.color = '#f59e0b';
+                else star.style.color = '#475569';
+            });
+        }
+
+        function updateCharCount() {
+            const len = document.getElementById('review-text-input').value.length;
+            document.getElementById('char-count').innerText = `${len} / 1000`;
+        }
+
+        function submitReview() {
+            const user = JSON.parse(localStorage.getItem('currentUser')) || { user_id: 1 };
+            const text = document.getElementById('review-text-input').value.trim();
+            const isSpoiler = document.getElementById('spoiler-checkbox').checked;
+
+            if (text.length < 5) { alert('Review must be at least 5 characters long.'); return; }
+
+            fetch(`/api/movies/${movieId}/reviews`, {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({
+                    user_id: user.user_id,
+                    rating: selectedRatingValue,
+                    review_text: text,
+                    is_spoiler: isSpoiler
+                })
+            })
+            .then(r => r.json())
+            .then(data => {
+                if (data.error) { alert(data.error); return; }
+                alert("🎉 Review submitted successfully! CineHub reward points awarded.");
+                closeReviewModal();
+                document.getElementById('review-text-input').value = '';
+                loadRatingSummary();
+                loadReviews(true);
+            });
+        }
+    </script>
+</body>
+</html>
