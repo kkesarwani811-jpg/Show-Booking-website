@@ -60,17 +60,170 @@
     <!-- Main Movie Showcase -->
     <main class="relative z-10 flex-1 max-w-7xl w-full mx-auto p-6 md:p-8 space-y-10">
         
-        <!-- Hero Cinema Explorer Callout -->
-        <div class="bg-gradient-to-r from-rose-950/40 via-slate-900/80 to-slate-900/40 border border-slate-800/80 rounded-3xl p-8 backdrop-blur-xl flex flex-col md:flex-row items-center justify-between gap-6 shadow-2xl">
-            <div class="space-y-2 text-center md:text-left">
-                <span class="px-3 py-1 rounded-full bg-rose-500/10 border border-rose-500/20 text-rose-400 text-[10px] font-black uppercase tracking-wider">New Experience</span>
-                <h2 class="text-2xl sm:text-3xl font-black text-white">Explore Nearby 4DX & IMAX Theaters</h2>
-                <p class="text-xs sm:text-sm text-slate-400 max-w-xl">Compare acoustics, recliner facilities, and live ticket prices on an interactive cinematic map.</p>
+        <!-- BookMyShow Style Wide Hero Billboard Carousel (Matching Screenshot) -->
+        <div class="relative w-full overflow-hidden rounded-3xl border border-slate-800/80 shadow-2xl bg-slate-950 group/hero"
+             id="hero-carousel-wrapper">
+            
+            <!-- Slides Track -->
+            <div id="hero-slides-track" 
+                 class="flex transition-transform duration-700 ease-out"
+                 style="transform: translateX(0%);">
+                
+                <!-- Slide 1: Mumbai's Biggest Design & Cinema Weekend (Matching Screenshot) -->
+                <div class="min-w-full relative h-[240px] sm:h-[300px] md:h-[360px] flex items-center overflow-hidden">
+                    <img src="https://images.unsplash.com/photo-1513694203232-719a280e022f?w=1600&auto=format&fit=crop&q=80" 
+                         alt="Design Weekend" 
+                         class="absolute inset-0 w-full h-full object-cover">
+                    <!-- Crimson & Dark Overlay Gradient -->
+                    <div class="absolute inset-0 bg-gradient-to-r from-black/95 via-black/75 to-black/30 z-10"></div>
+                    
+                    <div class="relative z-20 px-6 sm:px-12 md:px-16 max-w-3xl space-y-3 sm:space-y-4">
+                        <div class="flex items-center gap-2">
+                            <span class="px-2.5 py-1 rounded-md bg-rose-600/90 text-white font-black text-[10px] tracking-wider uppercase">
+                                AD DESIGN SHOW 2026
+                            </span>
+                            <span class="text-xs text-rose-300 font-bold hidden sm:inline-block">IN ASSOCIATION WITH PIDILITE</span>
+                        </div>
+                        <h1 class="text-2xl sm:text-4xl md:text-5xl font-black text-white tracking-tight leading-tight uppercase">
+                            MUMBAI'S BIGGEST<br class="hidden sm:inline"> DESIGN WEEKEND
+                        </h1>
+                        <div class="flex flex-wrap items-center gap-4 pt-1">
+                            <a href="/cinema-explorer" 
+                               class="bg-white hover:bg-slate-200 text-slate-950 font-black text-xs sm:text-sm px-5 sm:px-6 py-2.5 sm:py-3 rounded-xl shadow-xl transition inline-flex items-center gap-2">
+                                <span>Book for ₹1,199</span>
+                                <i class="fa-solid fa-arrow-right text-xs"></i>
+                            </a>
+                            <div class="text-xs sm:text-sm font-bold text-slate-300 flex items-center gap-2">
+                                <i class="fa-regular fa-calendar text-rose-500"></i>
+                                <span>NOVEMBER 13 | 14 | 15 • Jio World Convention Centre, BKC</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Slide 2: Dune Part Two IMAX Experience -->
+                <div class="min-w-full relative h-[240px] sm:h-[300px] md:h-[360px] flex items-center overflow-hidden">
+                    <img src="https://images.unsplash.com/photo-1534447677768-be436bb09401?w=1600&auto=format&fit=crop&q=80" 
+                         alt="Dune 2" 
+                         class="absolute inset-0 w-full h-full object-cover">
+                    <div class="absolute inset-0 bg-gradient-to-r from-black/95 via-black/75 to-transparent z-10"></div>
+                    
+                    <div class="relative z-20 px-6 sm:px-12 md:px-16 max-w-3xl space-y-3 sm:space-y-4">
+                        <div class="flex items-center gap-2">
+                            <span class="px-2.5 py-1 rounded-md bg-amber-500/90 text-black font-black text-[10px] tracking-wider uppercase">
+                                IMAX 70MM SPECIAL
+                            </span>
+                            <span class="text-xs text-amber-300 font-bold hidden sm:inline-block">EXPERIENCE THE CINEMATIC MASTERPIECE</span>
+                        </div>
+                        <h1 class="text-2xl sm:text-4xl md:text-5xl font-black text-white tracking-tight leading-tight uppercase">
+                            DUNE: PART TWO
+                        </h1>
+                        <p class="text-xs sm:text-sm text-slate-300 max-w-xl line-clamp-2">
+                            Paul Atreides unites with Chani and the Fremen in an all-out battle for Arrakis. Experience it in IMAX with 12-channel laser audio.
+                        </p>
+                        <div class="flex flex-wrap items-center gap-4 pt-1">
+                            <a href="/pick-showtime?movie_id=1" 
+                               class="bg-rose-600 hover:bg-rose-500 text-white font-black text-xs sm:text-sm px-6 py-2.5 sm:py-3 rounded-xl shadow-xl shadow-rose-950/50 transition inline-flex items-center gap-2">
+                                <span>Book Prime Seats</span>
+                                <i class="fa-solid fa-arrow-right text-xs"></i>
+                            </a>
+                            <div class="text-xs sm:text-sm font-bold text-slate-300 flex items-center gap-2">
+                                <i class="fa-solid fa-film text-rose-500"></i>
+                                <span>IMAX 3D • 4DX • DOLBY ATMOS</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Slide 3: Deadpool & Wolverine -->
+                <div class="min-w-full relative h-[240px] sm:h-[300px] md:h-[360px] flex items-center overflow-hidden">
+                    <img src="https://images.unsplash.com/photo-1509198397868-475647b2a1e5?w=1600&auto=format&fit=crop&q=80" 
+                         alt="Deadpool & Wolverine" 
+                         class="absolute inset-0 w-full h-full object-cover">
+                    <div class="absolute inset-0 bg-gradient-to-r from-black/95 via-black/75 to-transparent z-10"></div>
+                    
+                    <div class="relative z-20 px-6 sm:px-12 md:px-16 max-w-3xl space-y-3 sm:space-y-4">
+                        <div class="flex items-center gap-2">
+                            <span class="px-2.5 py-1 rounded-md bg-rose-600/90 text-white font-black text-[10px] tracking-wider uppercase">
+                                SUMMER BLOCKBUSTER
+                            </span>
+                            <span class="text-xs text-rose-300 font-bold hidden sm:inline-block">NOW TICKETING NATIONWIDE</span>
+                        </div>
+                        <h1 class="text-2xl sm:text-4xl md:text-5xl font-black text-white tracking-tight leading-tight uppercase">
+                            DEADPOOL &amp; WOLVERINE
+                        </h1>
+                        <p class="text-xs sm:text-sm text-slate-300 max-w-xl line-clamp-2">
+                            The ultimate team-up of the year in 4DX motion seats and crystal-clear 3D audio. Tickets selling out fast!
+                        </p>
+                        <div class="flex flex-wrap items-center gap-4 pt-1">
+                            <a href="/pick-showtime?movie_id=14" 
+                               class="bg-white hover:bg-slate-200 text-slate-950 font-black text-xs sm:text-sm px-6 py-2.5 sm:py-3 rounded-xl shadow-xl transition inline-flex items-center gap-2">
+                                <span>Book Tickets</span>
+                                <i class="fa-solid fa-arrow-right text-xs"></i>
+                            </a>
+                            <div class="text-xs sm:text-sm font-bold text-slate-300 flex items-center gap-2">
+                                <i class="fa-solid fa-couch text-rose-500"></i>
+                                <span>Recliner Luxe • 4DX Active Screens</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Slide 4: Interactive Cinema Explorer -->
+                <div class="min-w-full relative h-[240px] sm:h-[300px] md:h-[360px] flex items-center overflow-hidden">
+                    <img src="https://images.unsplash.com/photo-1489599849927-2ee91cede3ba?w=1600&auto=format&fit=crop&q=80" 
+                         alt="Cinema Explorer" 
+                         class="absolute inset-0 w-full h-full object-cover">
+                    <div class="absolute inset-0 bg-gradient-to-r from-black/95 via-black/75 to-transparent z-10"></div>
+                    
+                    <div class="relative z-20 px-6 sm:px-12 md:px-16 max-w-3xl space-y-3 sm:space-y-4">
+                        <div class="flex items-center gap-2">
+                            <span class="px-2.5 py-1 rounded-md bg-sky-500/90 text-white font-black text-[10px] tracking-wider uppercase">
+                                MAP DISCOVERY MODE
+                            </span>
+                            <span class="text-xs text-sky-300 font-bold hidden sm:inline-block">FIND YOUR PERFECT SCREEN</span>
+                        </div>
+                        <h1 class="text-2xl sm:text-4xl md:text-5xl font-black text-white tracking-tight leading-tight uppercase">
+                            EXPLORE NEARBY CINEMAS
+                        </h1>
+                        <p class="text-xs sm:text-sm text-slate-300 max-w-xl line-clamp-2">
+                            Interactive map of nearby IMAX, 4DX, and Dolby Atmos theaters with acoustics, amenities, parking, and starting ticket prices.
+                        </p>
+                        <div class="flex flex-wrap items-center gap-4 pt-1">
+                            <a href="/cinema-explorer" 
+                               class="bg-rose-600 hover:bg-rose-500 text-white font-black text-xs sm:text-sm px-6 py-2.5 sm:py-3 rounded-xl shadow-xl shadow-rose-950/50 transition inline-flex items-center gap-2">
+                                <span>Launch Live Map</span>
+                                <i class="fa-solid fa-compass text-xs"></i>
+                            </a>
+                            <div class="text-xs sm:text-sm font-bold text-slate-300 flex items-center gap-2">
+                                <i class="fa-solid fa-location-dot text-rose-500"></i>
+                                <span>Mumbai • Pune • Delhi • Bengaluru</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
             </div>
-            <a href="/cinema-explorer" class="bg-rose-600 hover:bg-rose-500 text-white font-bold text-xs px-6 py-3.5 rounded-2xl shadow-xl shadow-rose-950/50 transition shrink-0 flex items-center gap-2">
-                <span>Launch Cinema Explorer</span>
-                <i class="fa-solid fa-arrow-right text-xs"></i>
-            </a>
+
+            <!-- Left & Right Arrow Controls (BookMyShow Style) -->
+            <button onclick="changeHeroSlide(-1)" 
+                    title="Previous Slide"
+                    class="absolute left-3 sm:left-4 top-1/2 -translate-y-1/2 z-30 w-9 h-9 sm:w-11 sm:h-11 rounded-full bg-black/60 hover:bg-rose-600 text-white border border-white/20 backdrop-blur-md shadow-2xl flex items-center justify-center transition opacity-80 hover:opacity-100 hover:scale-105">
+                <i class="fa-solid fa-chevron-left text-xs sm:text-sm"></i>
+            </button>
+            <button onclick="changeHeroSlide(1)" 
+                    title="Next Slide"
+                    class="absolute right-3 sm:right-4 top-1/2 -translate-y-1/2 z-30 w-9 h-9 sm:w-11 sm:h-11 rounded-full bg-black/60 hover:bg-rose-600 text-white border border-white/20 backdrop-blur-md shadow-2xl flex items-center justify-center transition opacity-80 hover:opacity-100 hover:scale-105">
+                <i class="fa-solid fa-chevron-right text-xs sm:text-sm"></i>
+            </button>
+
+            <!-- Bottom Center Dots Pagination (Matching Screenshot) -->
+            <div class="absolute bottom-4 left-1/2 -translate-x-1/2 z-30 flex items-center gap-2" id="hero-dots-container">
+                <button onclick="goToHeroSlide(0)" class="hero-dot h-1.5 rounded-full transition-all duration-300 w-6 bg-white"></button>
+                <button onclick="goToHeroSlide(1)" class="hero-dot h-1.5 rounded-full transition-all duration-300 w-1.5 bg-white/40"></button>
+                <button onclick="goToHeroSlide(2)" class="hero-dot h-1.5 rounded-full transition-all duration-300 w-1.5 bg-white/40"></button>
+                <button onclick="goToHeroSlide(3)" class="hero-dot h-1.5 rounded-full transition-all duration-300 w-1.5 bg-white/40"></button>
+            </div>
         </div>
 
         <!-- Recommended Movies (BookMyShow Style Carousel) -->
@@ -233,7 +386,90 @@
             });
         }
 
+        // BookMyShow Wide Hero Billboard Carousel Controller
+        let currentHeroSlide = 0;
+        const totalHeroSlides = 4;
+        let heroAutoplayTimer = null;
+
+        function updateHeroCarousel() {
+            const track = document.getElementById('hero-slides-track');
+            if (track) {
+                track.style.transform = `translateX(-${currentHeroSlide * 100}%)`;
+            }
+            const dots = document.querySelectorAll('.hero-dot');
+            dots.forEach((dot, idx) => {
+                if (idx === currentHeroSlide) {
+                    dot.className = 'hero-dot h-1.5 rounded-full transition-all duration-300 w-6 bg-white';
+                } else {
+                    dot.className = 'hero-dot h-1.5 rounded-full transition-all duration-300 w-1.5 bg-white/40 hover:bg-white/70';
+                }
+            });
+        }
+
+        function changeHeroSlide(direction) {
+            currentHeroSlide = (currentHeroSlide + direction + totalHeroSlides) % totalHeroSlides;
+            updateHeroCarousel();
+            resetHeroAutoplay();
+        }
+
+        function goToHeroSlide(index) {
+            currentHeroSlide = index;
+            updateHeroCarousel();
+            resetHeroAutoplay();
+        }
+
+        function startHeroAutoplay() {
+            if (heroAutoplayTimer) clearInterval(heroAutoplayTimer);
+            heroAutoplayTimer = setInterval(() => {
+                currentHeroSlide = (currentHeroSlide + 1) % totalHeroSlides;
+                updateHeroCarousel();
+            }, 4500);
+        }
+
+        function resetHeroAutoplay() {
+            if (heroAutoplayTimer) clearInterval(heroAutoplayTimer);
+            startHeroAutoplay();
+        }
+
+        function setupHeroCarousel() {
+            const wrapper = document.getElementById('hero-carousel-wrapper');
+            if (!wrapper) return;
+
+            // Pause on hover, resume on mouse leave
+            wrapper.addEventListener('mouseenter', () => {
+                if (heroAutoplayTimer) clearInterval(heroAutoplayTimer);
+            });
+            wrapper.addEventListener('mouseleave', () => {
+                startHeroAutoplay();
+            });
+
+            // Touch swipe support for mobile
+            let touchStartX = 0;
+            wrapper.addEventListener('touchstart', (e) => {
+                touchStartX = e.changedTouches[0].screenX;
+            }, { passive: true });
+
+            wrapper.addEventListener('touchend', (e) => {
+                const touchEndX = e.changedTouches[0].screenX;
+                const diff = touchStartX - touchEndX;
+                if (Math.abs(diff) > 40) {
+                    if (diff > 0) changeHeroSlide(1); // Swiped left -> next slide
+                    else changeHeroSlide(-1);         // Swiped right -> prev slide
+                }
+            }, { passive: true });
+
+            // Keyboard navigation when user is not typing in an input
+            document.addEventListener('keydown', (e) => {
+                if (['input', 'textarea'].includes(document.activeElement.tagName.toLowerCase())) return;
+                if (e.key === 'ArrowLeft') changeHeroSlide(-1);
+                if (e.key === 'ArrowRight') changeHeroSlide(1);
+            });
+
+            startHeroAutoplay();
+        }
+
         window.onload = () => {
+            setupHeroCarousel();
             loadMovies();
             setupLiveSearch();
         };
