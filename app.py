@@ -1,18 +1,57 @@
-﻿from flask import Flask, jsonify, request, render_template
+from flask import Flask, jsonify, request, render_template
 from flask_cors import CORS, cross_origin
 import sqlite3
 import json
+from datetime import datetime, timedelta, timezone
+
+LOCK_TTL_MINUTES = 7  # How long a seat lock is held before it auto-expires
 
 app = Flask(__name__)
 CORS(app)
 
 def get_db_connection():
-    conn = sqlite3.connect('cinematic_pulse.db')
+    conn = sqlite3.connect('cinematic_pulse.db', detect_types=sqlite3.PARSE_DECLTYPES)
     conn.row_factory = sqlite3.Row
+    # Enforce foreign-key constraints and enable WAL for better concurrency
+    conn.execute('PRAGMA foreign_keys = ON')
+    conn.execute('PRAGMA journal_mode = WAL')
     return conn
+
+
+def utc_now() -> datetime:
+    """Return the current UTC time as a timezone-aware datetime."""
+    return datetime.now(timezone.utc)
+
+
+def _parse_booked_seats(seats_booked_str: str) -> list[str]:
+    """
+    Normalise a seats_booked string (e.g. "A1, A2" or '["A1","A2"]')
+    into a clean list of uppercase seat labels.
+    """
+    if not seats_booked_str:
+        return []
+    seats_booked_str = seats_booked_str.strip()
+    if seats_booked_str.startswith('['):
+        try:
+            return [s.strip().upper() for s in json.loads(seats_booked_str)]
+        except (json.JSONDecodeError, ValueError):
+            pass
+    return [s.strip().upper() for s in seats_booked_str.split(',') if s.strip()]
 
 def init_all_dbs():
     conn = get_db_connection()
+
+    # Self-healing migration for existing DBs created by older scripts
+    movies_cols = [r[1] for r in conn.execute('PRAGMA table_info(movies)').fetchall()]
+    if movies_cols and 'duration' not in movies_cols:
+        conn.execute('ALTER TABLE movies ADD COLUMN duration TEXT DEFAULT "2h 30m"')
+    
+    showtimes_cols = [r[1] for r in conn.execute('PRAGMA table_info(showtimes)').fetchall()]
+    if showtimes_cols and 'cinema_id' not in showtimes_cols:
+        conn.execute('ALTER TABLE showtimes ADD COLUMN cinema_id INTEGER')
+    if showtimes_cols and 'screen_type' not in showtimes_cols:
+        conn.execute('ALTER TABLE showtimes ADD COLUMN screen_type TEXT DEFAULT "Standard 2D"')
+
     # 1. Movies Table
     conn.execute('''
         CREATE TABLE IF NOT EXISTS movies (
@@ -128,6 +167,23 @@ def init_all_dbs():
             status TEXT,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )
+    ''')
+
+    # 6. Seat Locks Table — temporary holds during checkout (TTL: LOCK_TTL_MINUTES)
+    conn.execute('''
+        CREATE TABLE IF NOT EXISTS seat_locks (
+            lock_id      INTEGER PRIMARY KEY AUTOINCREMENT,
+            showtime_id  INTEGER NOT NULL,
+            seat_number  TEXT    NOT NULL,
+            user_id      INTEGER NOT NULL,
+            expires_at   TIMESTAMP NOT NULL,
+            UNIQUE (showtime_id, seat_number)
+        )
+    ''')
+    # Index to make expiry sweeps fast
+    conn.execute('''
+        CREATE INDEX IF NOT EXISTS idx_seat_locks_showtime
+        ON seat_locks (showtime_id, expires_at)
     ''')
     conn.commit()
     conn.close()
@@ -275,26 +331,266 @@ def get_food_items():
     conn.close()
     return jsonify([dict(i) for i in items])
 
+@app.route('/api/showtimes/<int:showtime_id>/seats', methods=['GET'])
+@cross_origin()
+def get_seat_availability(showtime_id):
+    """
+    Returns two lists for a given showtime:
+      - booked_seats  : permanently confirmed seats (from bookings table)
+      - locked_seats  : seats temporarily held by other users (not yet expired)
+
+    The frontend uses this to grey-out unavailable seats before the user picks.
+    """
+    conn = get_db_connection()
+    now = utc_now()
+
+    # --- 1. Confirmed seats (all bookings for this showtime, status = Confirmed) ---
+    rows = conn.execute(
+        "SELECT seats_booked FROM bookings WHERE showtime_id = ? AND status = 'Confirmed'",
+        (showtime_id,)
+    ).fetchall()
+
+    booked_seats: set[str] = set()
+    for row in rows:
+        booked_seats.update(_parse_booked_seats(row['seats_booked']))
+
+    # --- 2. Active locks held by OTHER users (expired locks are silently ignored) ---
+    user_id = request.args.get('user_id', type=int)
+    lock_query = '''
+        SELECT seat_number FROM seat_locks
+        WHERE showtime_id = ?
+          AND expires_at > ?
+    '''
+    lock_params: tuple = (showtime_id, now.isoformat())
+
+    if user_id is not None:
+        # Exclude the requesting user's own locks so they can still see their selection
+        lock_query += ' AND user_id != ?'
+        lock_params = (showtime_id, now.isoformat(), user_id)
+
+    lock_rows = conn.execute(lock_query, lock_params).fetchall()
+    locked_seats = [r['seat_number'] for r in lock_rows]
+
+    conn.close()
+
+    return jsonify({
+        'showtime_id': showtime_id,
+        'booked_seats': sorted(booked_seats),
+        'locked_seats': sorted(locked_seats),
+    })
+
+
+@app.route('/api/seats/lock', methods=['POST'])
+@cross_origin()
+def lock_seats():
+    """
+    Temporarily lock seats for a user during checkout.
+
+    Request JSON:
+        {
+          "showtime_id": 3,
+          "seats":       ["A1", "B4"],
+          "user_id":     42
+        }
+
+    Rules:
+      - Rejects with 409 if any seat is already CONFIRMED in bookings.
+      - Rejects with 409 if any seat has an active lock held by a DIFFERENT user.
+      - If the requesting user already holds a lock on a seat, the lock is refreshed.
+      - Lock TTL is LOCK_TTL_MINUTES (default 7 minutes) from now.
+
+    Response (200):
+        { "locked": ["A1", "B4"], "expires_at": "2026-11-06T18:08:31+00:00" }
+    """
+    data = request.get_json(silent=True) or {}
+
+    # --- Input validation ---
+    showtime_id = data.get('showtime_id')
+    seats_raw   = data.get('seats', [])
+    user_id     = data.get('user_id')
+
+    if not showtime_id or not seats_raw or user_id is None:
+        return jsonify({'error': 'showtime_id, seats (array), and user_id are required'}), 400
+
+    if not isinstance(seats_raw, list) or len(seats_raw) == 0:
+        return jsonify({'error': 'seats must be a non-empty array'}), 400
+
+    requested_seats = [s.strip().upper() for s in seats_raw]
+    now        = utc_now()
+    expires_at = now + timedelta(minutes=LOCK_TTL_MINUTES)
+
+    conn = get_db_connection()
+    try:
+        # Collect booked seats for this showtime
+        rows = conn.execute(
+            "SELECT seats_booked FROM bookings WHERE showtime_id = ? AND status = 'Confirmed'",
+            (showtime_id,)
+        ).fetchall()
+        booked_seats: set[str] = set()
+        for row in rows:
+            booked_seats.update(_parse_booked_seats(row['seats_booked']))
+
+        # Collect active locks held by OTHER users
+        lock_rows = conn.execute('''
+            SELECT seat_number FROM seat_locks
+            WHERE showtime_id = ?
+              AND user_id    != ?
+              AND expires_at  > ?
+        ''', (showtime_id, user_id, now.isoformat())).fetchall()
+        foreign_locks: set[str] = {r['seat_number'] for r in lock_rows}
+
+        # Find seats that are unavailable
+        booked_conflicts = [s for s in requested_seats if s in booked_seats]
+        locked_conflicts  = [s for s in requested_seats if s in foreign_locks]
+
+        if booked_conflicts or locked_conflicts:
+            conn.close()
+            return jsonify({
+                'error':           'One or more seats are unavailable',
+                'booked_conflicts': booked_conflicts,
+                'locked_conflicts': locked_conflicts,
+            }), 409
+
+        # Upsert locks — refresh if the same user already holds them
+        for seat in requested_seats:
+            conn.execute('''
+                INSERT INTO seat_locks (showtime_id, seat_number, user_id, expires_at)
+                VALUES (?, ?, ?, ?)
+                ON CONFLICT(showtime_id, seat_number)
+                DO UPDATE SET user_id    = excluded.user_id,
+                              expires_at = excluded.expires_at
+            ''', (showtime_id, seat, user_id, expires_at.isoformat()))
+
+        conn.commit()
+    except Exception as exc:
+        conn.rollback()
+        conn.close()
+        return jsonify({'error': 'Failed to acquire seat locks', 'detail': str(exc)}), 500
+
+    conn.close()
+    return jsonify({
+        'locked':     requested_seats,
+        'expires_at': expires_at.isoformat(),
+        'lock_ttl_minutes': LOCK_TTL_MINUTES,
+    })
+
+
 @app.route('/api/bookings', methods=['POST'])
 @cross_origin()
 def create_booking():
-    data = request.get_json() or {}
+    """
+    Confirm a seat booking.
+
+    Request JSON:
+        {
+          "movie_id":     1,
+          "showtime_id":  3,
+          "seats":        ["A1", "B4"],
+          "user_id":      42,
+          "total_amount": 700
+        }
+
+    Validation (inside a single SQLite transaction):
+      1. Checks every requested seat is NOT already confirmed in bookings.
+      2. Checks every seat is either:
+           a) locked by this user (active lock), OR
+           b) completely free (no lock at all / lock already expired).
+      3. Inserts the booking record.
+      4. Purges the user's seat locks for this showtime.
+
+    Returns 409 Conflict if any seat is taken by another booking or another user's lock.
+    """
+    data = request.get_json(silent=True) or {}
+
+    showtime_id  = data.get('showtime_id', 1)
+    movie_id     = data.get('movie_id', 1)
+    user_id      = data.get('user_id', 1)
+    total_amount = data.get('total_amount', 630)
+
+    # Normalise seats — accept both list and legacy comma-string
+    raw_seats = data.get('seats', 'A1, A2')
+    if isinstance(raw_seats, list):
+        requested_seats = [s.strip().upper() for s in raw_seats]
+    else:
+        requested_seats = _parse_booked_seats(str(raw_seats))
+
+    if not requested_seats:
+        return jsonify({'error': 'No seats provided'}), 400
+
+    seats_str = ', '.join(requested_seats)
+    now = utc_now()
+
     conn = get_db_connection()
-    cursor = conn.cursor()
-    cursor.execute("""
-        INSERT INTO bookings (movie_id, showtime_id, seats_booked, total_amount, status)
-        VALUES (?, ?, ?, ?, ?)
-    """, (
-        data.get('movie_id', 1),
-        data.get('showtime_id', 1),
-        str(data.get('seats', 'A1, A2')),
-        data.get('total_amount', 630),
-        'Confirmed'
-    ))
-    conn.commit()
-    booking_id = cursor.lastrowid
+    try:
+        # --- BEGIN explicit transaction ---
+        conn.execute('BEGIN EXCLUSIVE')
+
+        # 1. Collect confirmed seats for this showtime
+        rows = conn.execute(
+            "SELECT seats_booked FROM bookings WHERE showtime_id = ? AND status = 'Confirmed'",
+            (showtime_id,)
+        ).fetchall()
+        booked_seats: set[str] = set()
+        for row in rows:
+            booked_seats.update(_parse_booked_seats(row['seats_booked']))
+
+        booked_conflicts = [s for s in requested_seats if s in booked_seats]
+        if booked_conflicts:
+            conn.rollback()
+            conn.close()
+            return jsonify({
+                'error':   'Seats already booked by another user',
+                'conflicts': booked_conflicts,
+            }), 409
+
+        # 2. Validate locks — each seat must be either unlocked OR locked by this user
+        lock_rows = conn.execute('''
+            SELECT seat_number, user_id FROM seat_locks
+            WHERE showtime_id = ?
+              AND expires_at  > ?
+        ''', (showtime_id, now.isoformat())).fetchall()
+
+        # Map: seat -> owner user_id  (only active locks)
+        active_locks: dict[str, int] = {r['seat_number']: r['user_id'] for r in lock_rows}
+
+        foreign_lock_conflicts = [
+            s for s in requested_seats
+            if s in active_locks and active_locks[s] != user_id
+        ]
+        if foreign_lock_conflicts:
+            conn.rollback()
+            conn.close()
+            return jsonify({
+                'error':     'Seats are temporarily held by another user',
+                'conflicts': foreign_lock_conflicts,
+            }), 409
+
+        # 3. Insert confirmed booking
+        cursor = conn.execute('''
+            INSERT INTO bookings (movie_id, showtime_id, seats_booked, total_amount, status)
+            VALUES (?, ?, ?, ?, ?)
+        ''', (movie_id, showtime_id, seats_str, total_amount, 'Confirmed'))
+        booking_id = cursor.lastrowid
+
+        # 4. Release this user's seat locks for the showtime (cleanup)
+        conn.execute('''
+            DELETE FROM seat_locks
+            WHERE showtime_id = ? AND user_id = ?
+        ''', (showtime_id, user_id))
+
+        conn.commit()
+    except Exception as exc:
+        conn.rollback()
+        conn.close()
+        return jsonify({'error': 'Booking failed due to a server error', 'detail': str(exc)}), 500
+
     conn.close()
-    return jsonify({'success': True, 'booking_id': booking_id})
+    return jsonify({
+        'success':    True,
+        'booking_id': booking_id,
+        'seats':      requested_seats,
+        'status':     'Confirmed',
+    }), 201
 
 @app.route('/api/users/<int:user_id>/bookings', methods=['GET'])
 @cross_origin()

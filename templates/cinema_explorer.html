@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="en" class="dark">
 <head>
     <meta charset="UTF-8">
@@ -18,12 +18,31 @@
         /* Cinematic Dark Leaflet Map */
         #map {
             width: 100%;
-            height: 100%;
+            height: 480px;
             min-height: 480px;
             background: #080c14;
             border-radius: 1.5rem;
             z-index: 10;
         }
+
+        /*
+         * DARK MAP TRICK — no API key, no watermarks, ever.
+         *
+         * CARTO deprecated their free public tile CDN; their server now returns
+         * "API KEY REQUIRED" placeholder tiles for all unauthenticated requests.
+         *
+         * Solution: load standard OpenStreetMap tiles (always free, no key) and
+         * apply a CSS hue-rotate + invert filter to the tile pane only.
+         * Result: a high-contrast cinematic dark basemap that matches the app's
+         * colour scheme, with real street detail at every zoom level.
+         *
+         * The filter is scoped to .leaflet-tile-pane so SVG markers, popups,
+         * and zoom controls are NOT inverted — they keep their original colours.
+         */
+        .leaflet-tile-pane {
+            filter: invert(100%) hue-rotate(180deg) brightness(90%) contrast(90%) saturate(0.6);
+        }
+
         .leaflet-container {
             font-family: inherit;
             background: #030712 !important;
@@ -308,7 +327,7 @@
                 </div>
 
                 <!-- Leaflet Dark Map Container -->
-                <div class="w-full h-[480px] rounded-2xl overflow-hidden relative border border-slate-800">
+                <div class="w-full rounded-2xl relative border border-slate-800" style="height:480px;">
                     <div id="map"></div>
                 </div>
             </section>
@@ -333,8 +352,13 @@
     </main>
 
     <!-- Glassmorphic Cinema Detail & Showtime Modal -->
-    <div id="cinema-detail-modal" class="fixed inset-0 z-50 bg-black/80 backdrop-blur-md hidden items-center justify-center p-4">
-        <div class="bg-slate-900/95 border border-slate-800 rounded-3xl max-w-2xl w-full max-h-[90vh] overflow-y-auto p-6 sm:p-8 shadow-2xl relative space-y-6 animate-fadeIn">
+    <!-- NOTE: Do NOT put 'hidden' or 'flex' here — visibility is controlled
+         entirely via style.display in JS to avoid Tailwind !important conflicts. -->
+    <div id="cinema-detail-modal"
+         class="fixed inset-0 z-[9999] bg-black/80 backdrop-blur-md items-center justify-center p-4"
+         style="display:none;"
+         onclick="if(event.target===this) closeCinemaModal()">
+        <div class="bg-slate-900/95 border border-slate-800 rounded-3xl max-w-2xl w-full max-h-[90vh] overflow-y-auto p-6 sm:p-8 shadow-2xl relative space-y-6">
             
             <button onclick="closeCinemaModal()" class="absolute top-6 right-6 w-9 h-9 rounded-full bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white flex items-center justify-center transition">
                 <i class="fa-solid fa-xmark text-sm"></i>
@@ -413,14 +437,29 @@
                 zoomControl: true
             });
 
-            // Cinematic Dark Matter Tile Layer
-            L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
-                attribution: '&copy; OpenStreetMap &copy; CARTO',
-                subdomains: 'abcd',
+            // ── Tile Layer ───────────────────────────────────────────────────────
+            // CARTO deprecated their free public CDN — their server now returns
+            // "API KEY REQUIRED" placeholder tiles for all unauthenticated requests,
+            // regardless of URL format ({r} suffix, subdomains, etc.).
+            //
+            // Fix: standard OpenStreetMap tiles (free forever, no account needed)
+            // + CSS filter on .leaflet-tile-pane (invert + hue-rotate) in the
+            // <style> block above. This produces a cinematic dark basemap without
+            // any third-party dependency or API key.
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+                subdomains: 'abc',
                 maxZoom: 19
             }).addTo(map);
 
             markersGroup = L.layerGroup().addTo(map);
+
+            // ── invalidateSize ───────────────────────────────────────────────────
+            // Called twice:
+            //   1. setTimeout(0)  — after current call-stack clears (layout flushed)
+            //   2. setTimeout(250) — safety net for slow CSS transitions / flex paint
+            setTimeout(() => map.invalidateSize(), 0);
+            setTimeout(() => map.invalidateSize(), 250);
         }
 
         async function fetchCinemas() {
@@ -523,13 +562,26 @@
                             <span>${cinema.distance_km} km</span>
                         </div>
                         <p class="text-[10px] text-rose-400 font-bold">From ₹${cinema.starting_price}</p>
-                        <button onclick="openCinemaDetailModal(${cinema.cinema_id})" class="w-full mt-2 bg-rose-600 hover:bg-rose-500 py-1.5 rounded-lg text-[10px] font-bold text-white transition">
+                        <button data-cinema-id="${cinema.cinema_id}"
+                                class="popup-showtime-btn w-full mt-2 bg-rose-600 hover:bg-rose-500 py-1.5 rounded-lg text-[10px] font-bold text-white transition">
                             View Showtimes
                         </button>
                     </div>
                 `;
 
                 marker.bindPopup(popupContent);
+
+                // Wire button via popupopen — avoids inline onclick scope issues
+                // inside Leaflet's sandboxed popup DOM node.
+                marker.on('popupopen', function () {
+                    const btn = document.querySelector('.popup-showtime-btn[data-cinema-id="' + cinema.cinema_id + '"]');
+                    if (btn) {
+                        btn.addEventListener('click', function () {
+                            openCinemaDetailModal(cinema.cinema_id);
+                        });
+                    }
+                });
+
                 marker.on('click', () => {
                     focusCinema(cinema.cinema_id, cinema.latitude, cinema.longitude);
                 });
@@ -652,29 +704,41 @@
         }
 
         async function openCinemaDetailModal(cinemaId) {
+            const modal = document.getElementById('cinema-detail-modal');
+
+            // Show a loading state immediately so the user gets instant feedback
+            modal.style.display = 'flex';
+            document.getElementById('modal-cinema-name').innerText  = 'Loading…';
+            document.getElementById('modal-cinema-address').innerText = '';
+            document.getElementById('modal-shows-container').innerHTML =
+                '<p class="text-xs text-slate-500 italic animate-pulse">Fetching showtimes…</p>';
+
             try {
                 const res = await fetch(`/api/cinemas/${cinemaId}/showtimes`);
+                if (!res.ok) throw new Error(`HTTP ${res.status}`);
                 const data = await res.json();
 
-                document.getElementById('modal-cinema-img').src = data.image_url;
-                document.getElementById('modal-cinema-name').innerText = data.cinema_name;
-                document.getElementById('modal-cinema-address').innerText = data.address;
-                document.getElementById('modal-cinema-rating').innerHTML = `<i class="fa-solid fa-star mr-1"></i>${data.rating}`;
-                document.getElementById('modal-cinema-distance').innerText = `• ${data.distance_km} km away`;
-                document.getElementById('modal-cinema-badge').innerText = data.badge || 'CINEHUB CERTIFIED';
+                document.getElementById('modal-cinema-img').src            = data.image_url   || '';
+                document.getElementById('modal-cinema-name').innerText      = data.cinema_name || 'Unknown Cinema';
+                document.getElementById('modal-cinema-address').innerText   = data.address     || '';
+                document.getElementById('modal-cinema-rating').innerHTML    = `<i class="fa-solid fa-star mr-1"></i>${data.rating}`;
+                document.getElementById('modal-cinema-distance').innerText  = `• ${data.distance_km} km away`;
+                document.getElementById('modal-cinema-badge').innerText     = data.badge       || 'CINEHUB CERTIFIED';
 
-                document.getElementById('modal-formats-container').innerHTML = data.formats.map(f => `
+                document.getElementById('modal-formats-container').innerHTML = (data.formats || []).map(f => `
                     <span class="px-2.5 py-1 rounded-lg bg-slate-950 border border-slate-800 text-[11px] font-bold text-slate-200">${f}</span>
                 `).join('');
-                document.getElementById('modal-facilities-container').innerHTML = data.facilities.map(fac => `
+
+                document.getElementById('modal-facilities-container').innerHTML = (data.facilities || []).map(fac => `
                     <span class="px-2.5 py-1 rounded-lg bg-slate-950 border border-slate-800 text-[11px] font-medium text-slate-400"><i class="fa-solid fa-check text-rose-500 mr-1"></i>${fac}</span>
                 `).join('');
 
-                document.getElementById('modal-directions-btn').href = `https://www.google.com/maps/dir/?api=1&destination=${data.latitude},${data.longitude}`;
+                document.getElementById('modal-directions-btn').href =
+                    `https://www.google.com/maps/dir/?api=1&destination=${data.latitude},${data.longitude}`;
 
                 const showsContainer = document.getElementById('modal-shows-container');
                 if (!data.movies || data.movies.length === 0) {
-                    showsContainer.innerHTML = `<p class="text-xs text-slate-500 italic">No available showtimes remaining today.</p>`;
+                    showsContainer.innerHTML = `<p class="text-xs text-slate-500 italic">No available showtimes for this cinema.</p>`;
                 } else {
                     showsContainer.innerHTML = data.movies.map(m => `
                         <div class="bg-slate-950/80 border border-slate-800/80 rounded-2xl p-4 flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
@@ -685,10 +749,10 @@
                                     <p class="text-[11px] text-slate-400">${m.genre} • ${m.duration}</p>
                                 </div>
                             </div>
-
                             <div class="flex flex-wrap gap-2">
                                 ${m.showtimes.map(st => `
-                                    <button onclick="goToSeatBooking(${m.movie_id}, ${st.showtime_id})" class="bg-slate-900 hover:bg-rose-600 border border-slate-800 hover:border-rose-500 rounded-xl px-3 py-2 transition text-center group">
+                                    <button onclick="goToSeatBooking(${m.movie_id}, ${st.showtime_id})"
+                                            class="bg-slate-900 hover:bg-rose-600 border border-slate-800 hover:border-rose-500 rounded-xl px-3 py-2 transition text-center group">
                                         <span class="text-xs font-black text-white block">${st.time}</span>
                                         <span class="text-[9px] font-semibold text-slate-400 group-hover:text-rose-200 block">${st.type} • ₹${st.price}</span>
                                     </button>
@@ -698,16 +762,16 @@
                     `).join('');
                 }
 
-                document.getElementById('cinema-detail-modal').classList.remove('hidden');
-                document.getElementById('cinema-detail-modal').classList.add('flex');
             } catch (err) {
-                console.error("Failed to load showtimes modal:", err);
+                console.error('Failed to load cinema showtimes:', err);
+                document.getElementById('modal-shows-container').innerHTML =
+                    `<p class="text-xs text-rose-400 font-bold">⚠ Failed to load showtimes. Please try again.</p>`;
             }
         }
 
         function closeCinemaModal() {
-            document.getElementById('cinema-detail-modal').classList.add('hidden');
-            document.getElementById('cinema-detail-modal').classList.remove('flex');
+            // Use style.display — avoids Tailwind 'hidden' vs 'flex' !important conflict
+            document.getElementById('cinema-detail-modal').style.display = 'none';
         }
 
         function goToSeatBooking(movieId, showtimeId) {
@@ -721,7 +785,14 @@
             }
         }
 
-        window.onload = initPage;
+        // DOMContentLoaded fires as soon as HTML is parsed — Leaflet (loaded in
+        // <head> as a sync script) is already available at this point.
+        // window.onload would fire AFTER all images finish downloading, by which
+        // time other JS on the page may have already tried to access `map`.
+        document.addEventListener('DOMContentLoaded', initPage);
+
+        // Re-fit tiles on window resize (handles sidebar toggles, orientation change)
+        window.addEventListener('resize', () => { if (map) map.invalidateSize(); });
     </script>
 </body>
 </html>
