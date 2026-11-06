@@ -2,12 +2,23 @@ from flask import Flask, jsonify, request, render_template
 from flask_cors import CORS, cross_origin
 import sqlite3
 import json
-from datetime import datetime, timedelta, timezone
+import os
+from datetime import datetime, timedelta, timezone, date
+from flask_apscheduler import APScheduler
+from services.movie_sync import sync_tmdb_catalog, archive_expired_shows
 
 LOCK_TTL_MINUTES = 7  # How long a seat lock is held before it auto-expires
 
 app = Flask(__name__)
 CORS(app)
+
+# Flask-APScheduler Configuration
+class SchedulerConfig:
+    SCHEDULER_API_ENABLED = False
+
+app.config.from_object(SchedulerConfig())
+scheduler = APScheduler()
+scheduler.init_app(app)
 
 def get_db_connection():
     conn = sqlite3.connect('cinematic_pulse.db', detect_types=sqlite3.PARSE_DECLTYPES)
@@ -45,12 +56,26 @@ def init_all_dbs():
     movies_cols = [r[1] for r in conn.execute('PRAGMA table_info(movies)').fetchall()]
     if movies_cols and 'duration' not in movies_cols:
         conn.execute('ALTER TABLE movies ADD COLUMN duration TEXT DEFAULT "2h 30m"')
+    if movies_cols and 'status' not in movies_cols:
+        conn.execute("ALTER TABLE movies ADD COLUMN status TEXT DEFAULT 'NOW_SHOWING'")
+    if movies_cols and 'tmdb_id' not in movies_cols:
+        conn.execute("ALTER TABLE movies ADD COLUMN tmdb_id INTEGER")
+    if movies_cols and 'description' not in movies_cols:
+        conn.execute("ALTER TABLE movies ADD COLUMN description TEXT")
+    if movies_cols and 'release_date' not in movies_cols:
+        conn.execute("ALTER TABLE movies ADD COLUMN release_date TEXT")
     
     showtimes_cols = [r[1] for r in conn.execute('PRAGMA table_info(showtimes)').fetchall()]
     if showtimes_cols and 'cinema_id' not in showtimes_cols:
         conn.execute('ALTER TABLE showtimes ADD COLUMN cinema_id INTEGER')
     if showtimes_cols and 'screen_type' not in showtimes_cols:
         conn.execute('ALTER TABLE showtimes ADD COLUMN screen_type TEXT DEFAULT "Standard 2D"')
+    if showtimes_cols and 'show_date' not in showtimes_cols:
+        conn.execute('ALTER TABLE showtimes ADD COLUMN show_date TEXT')
+    if showtimes_cols and 'show_time_24' not in showtimes_cols:
+        conn.execute('ALTER TABLE showtimes ADD COLUMN show_time_24 TEXT')
+    if showtimes_cols and 'status' not in showtimes_cols:
+        conn.execute("ALTER TABLE showtimes ADD COLUMN status TEXT DEFAULT 'ACTIVE'")
 
     # 1. Movies Table
     conn.execute('''
@@ -61,7 +86,11 @@ def init_all_dbs():
             genre TEXT,
             duration TEXT,
             rating REAL,
-            trailer_url TEXT
+            trailer_url TEXT,
+            description TEXT,
+            status TEXT DEFAULT 'NOW_SHOWING',
+            tmdb_id INTEGER,
+            release_date TEXT
         )
     ''')
     if conn.execute('SELECT COUNT(*) FROM movies').fetchone()[0] == 0:
@@ -134,9 +163,12 @@ def init_all_dbs():
             cinema_id INTEGER,
             movie_id INTEGER,
             theater_name TEXT,
+            show_date TEXT,
             show_time TEXT,
+            show_time_24 TEXT,
             screen_type TEXT,
-            price REAL
+            price REAL,
+            status TEXT DEFAULT 'ACTIVE'
         )
     ''')
     if conn.execute('SELECT COUNT(*) FROM showtimes').fetchone()[0] == 0:
@@ -190,6 +222,29 @@ def init_all_dbs():
 
 init_all_dbs()
 
+# ----------------- SCHEDULED BACKGROUND JOBS -----------------
+@scheduler.task('interval', id='archive_expired_shows_job', hours=1)
+def scheduled_archive_job():
+    """Job 1: Run archive_expired_shows() every hour to prune expired screenings."""
+    with app.app_context():
+        app.logger.info("[Scheduler] Running hourly archive_expired_shows()...")
+        archive_expired_shows()
+
+@scheduler.task('cron', id='sync_tmdb_catalog_job', hour=4, minute=0)
+def scheduled_sync_job():
+    """Job 2: Run sync_tmdb_catalog() once every day at 04:00 AM."""
+    with app.app_context():
+        app.logger.info("[Scheduler] Running daily 04:00 AM sync_tmdb_catalog()...")
+        sync_tmdb_catalog()
+
+# Start scheduler safely
+if not app.debug or os.environ.get('WERKZEUG_RUN_MAIN') == 'true':
+    try:
+        scheduler.start()
+        app.logger.info("[Scheduler] Flask-APScheduler started successfully.")
+    except Exception as e:
+        app.logger.warning(f"[Scheduler] Start warning: {e}")
+
 # ----------------- PAGE ROUTES -----------------
 @app.route('/')
 def home(): return render_template('index.html')
@@ -223,8 +278,12 @@ def admin_page(): return render_template('admin_dashboard.html')
 def search():
     query = request.args.get('q', '').lower()
     conn = get_db_connection()
-    movies = conn.execute("SELECT * FROM movies WHERE LOWER(title) LIKE ? OR LOWER(genre) LIKE ?", 
-                           ('%'+query+'%', '%'+query+'%')).fetchall()
+    movies = conn.execute("""
+        SELECT * FROM movies 
+        WHERE status = 'NOW_SHOWING' 
+          AND (LOWER(title) LIKE ? OR LOWER(genre) LIKE ?)
+        ORDER BY rating DESC
+    """, ('%'+query+'%', '%'+query+'%')).fetchall()
     conn.close()
     return render_template('search_results.html', movies=[dict(m) for m in movies], query=query)
 
@@ -257,12 +316,14 @@ def get_cinema_showtimes(cinema_id):
         return jsonify({'error': 'Cinema not found'}), 404
 
     shows = conn.execute('''
-        SELECT s.showtime_id, s.show_time, s.screen_type, s.price,
+        SELECT s.showtime_id, s.show_time, s.screen_type, s.price, s.show_date,
                m.movie_id, m.title as movie_title, m.poster_url, m.genre, m.duration, m.rating
         FROM showtimes s
         JOIN movies m ON s.movie_id = m.movie_id
         WHERE s.cinema_id = ?
-        ORDER BY m.title, s.show_time
+          AND COALESCE(s.status, 'ACTIVE') != 'EXPIRED'
+          AND COALESCE(m.status, 'NOW_SHOWING') = 'NOW_SHOWING'
+        ORDER BY m.title, s.show_date, s.show_time_24, s.show_time
     ''', (cinema_id,)).fetchall()
 
     grouped_movies = {}
@@ -282,7 +343,8 @@ def get_cinema_showtimes(cinema_id):
             'showtime_id': s['showtime_id'],
             'time': s['show_time'],
             'type': s['screen_type'],
-            'price': s['price']
+            'price': s['price'],
+            'date': s['show_date']
         })
 
     cinema_data = dict(cinema)
@@ -295,8 +357,15 @@ def get_cinema_showtimes(cinema_id):
 @app.route('/api/movies', methods=['GET'])
 @cross_origin()
 def get_movies():
+    status_filter = request.args.get('status', 'NOW_SHOWING').upper()
     conn = get_db_connection()
-    movies = conn.execute('SELECT * FROM movies').fetchall()
+    if status_filter == 'ALL':
+        movies = conn.execute('SELECT * FROM movies ORDER BY movie_id DESC').fetchall()
+    else:
+        movies = conn.execute(
+            "SELECT * FROM movies WHERE status = ? ORDER BY movie_id DESC", 
+            (status_filter,)
+        ).fetchall()
     conn.close()
     return jsonify([dict(m) for m in movies])
 
@@ -313,15 +382,55 @@ def get_movie_detail(movie_id):
 @cross_origin()
 def get_movie_showtimes(movie_id):
     conn = get_db_connection()
-    showtimes = conn.execute('SELECT * FROM showtimes WHERE movie_id = ?', (movie_id,)).fetchall()
+    showtimes = conn.execute('''
+        SELECT * FROM showtimes 
+        WHERE movie_id = ? AND COALESCE(status, 'ACTIVE') != 'EXPIRED'
+        ORDER BY show_date, show_time_24, show_time
+    ''', (movie_id,)).fetchall()
     conn.close()
     if not showtimes:
-        return jsonify([
-            {'showtime_id': 1, 'theater_name': 'CineMax IMAX Luxe', 'show_time': '10:00 AM', 'price': 350},
-            {'showtime_id': 2, 'theater_name': 'PVR ICON Gold', 'show_time': '01:30 PM', 'price': 320},
-            {'showtime_id': 3, 'theater_name': 'INOX Megaplex Laser', 'show_time': '07:00 PM', 'price': 450}
-        ])
+        return jsonify([])
     return jsonify([dict(s) for s in showtimes])
+
+# ----------------- ADMIN AUTOMATION & SYNC ROUTES -----------------
+@app.route('/api/admin/sync-movies', methods=['POST'])
+@cross_origin()
+def trigger_movie_sync():
+    """Manual trigger endpoint to fetch latest TMDb movies & generate showtimes."""
+    api_key = request.headers.get('X-TMDB-KEY') or (request.get_json(silent=True) or {}).get('api_key')
+    result = sync_tmdb_catalog(api_key=api_key)
+    return jsonify(result)
+
+@app.route('/api/admin/archive-shows', methods=['POST'])
+@cross_origin()
+def trigger_archive_cleanup():
+    """Manual trigger endpoint to prune expired showtimes and archive zero-show movies."""
+    result = archive_expired_shows()
+    return jsonify(result)
+
+@app.route('/api/admin/catalog-status', methods=['GET'])
+@cross_origin()
+def get_catalog_status():
+    """Returns overview of active vs archived movies and showtimes."""
+    conn = get_db_connection()
+    now_showing = conn.execute("SELECT COUNT(*) FROM movies WHERE status = 'NOW_SHOWING'").fetchone()[0]
+    archived = conn.execute("SELECT COUNT(*) FROM movies WHERE status = 'ARCHIVED'").fetchone()[0]
+    total_movies = conn.execute("SELECT COUNT(*) FROM movies").fetchone()[0]
+    active_shows = conn.execute("SELECT COUNT(*) FROM showtimes WHERE COALESCE(status, 'ACTIVE') = 'ACTIVE'").fetchone()[0]
+    expired_shows = conn.execute("SELECT COUNT(*) FROM showtimes WHERE status = 'EXPIRED'").fetchone()[0]
+    conn.close()
+    return jsonify({
+        "movies": {
+            "now_showing": now_showing,
+            "archived": archived,
+            "total": total_movies
+        },
+        "showtimes": {
+            "active": active_shows,
+            "expired": expired_shows
+        },
+        "scheduler_running": scheduler.running
+    })
 
 @app.route('/api/food-items', methods=['GET'])
 @cross_origin()

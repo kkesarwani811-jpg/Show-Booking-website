@@ -743,7 +743,10 @@
                     showsContainer.innerHTML = data.movies.map(m => `
                         <div class="bg-slate-950/80 border border-slate-800/80 rounded-2xl p-4 flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
                             <div class="flex items-center gap-3">
-                                <img src="${m.poster_url}" class="w-12 h-16 object-cover rounded-xl border border-slate-700">
+                                <img src="${m.poster_url}" 
+                                     alt="${m.title}"
+                                     class="w-12 h-16 object-cover rounded-xl border border-slate-700"
+                                     onerror="this.onerror=null; this.src='https://images.unsplash.com/photo-1489599849927-2ee91cede3ba?w=500';">
                                 <div>
                                     <h5 class="font-bold text-sm text-white">${m.title}</h5>
                                     <p class="text-[11px] text-slate-400">${m.genre} • ${m.duration}</p>

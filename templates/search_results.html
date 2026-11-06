@@ -1,66 +1,153 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="en" class="dark">
 <head>
     <meta charset="UTF-8">
-    <title>CineHub - Premium Selection</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Search Results - CineHub</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/animejs/3.2.1/anime.min.js"></script>
-    <style>
-        .theater-perspective { perspective: 1000px; }
-        .seat { transition: transform 0.3s ease, background 0.3s ease; transform-style: preserve-3d; }
-        .seat:hover { transform: translateZ(20px) rotateX(10deg); }
-        .seat-selected { background: #b8000b !important; box-shadow: 0 0 15px #b8000b; }
-        .screen-glow { box-shadow: 0 50px 100px -20px rgba(184, 0, 11, 0.3); }
-    </style>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 </head>
-<body class="bg-[#050505] text-white min-h-screen p-8">
+<body class="bg-[#030712] text-slate-100 min-h-screen flex flex-col font-sans selection:bg-rose-500 selection:text-white">
 
-    <div class="max-w-7xl mx-auto flex gap-12">
-        <!-- 3D Cinema Area -->
-        <div class="flex-1 theater-perspective">
-            <div class="w-full h-16 bg-gradient-to-b from-slate-800 to-transparent rounded-b-full screen-glow mb-20 flex items-center justify-center font-black tracking-widest text-slate-500">SCREEN</div>
-            
-            <div id="seat-map" class="flex flex-col items-center gap-6">
-                <!-- Rows will be injected here via JS -->
-            </div>
-        </div>
-
-        <!-- Booking Summary (Glassmorphism) -->
-        <div class="w-80 bg-slate-900/50 backdrop-blur-xl border border-slate-800 p-6 rounded-3xl h-fit sticky top-8">
-            <h2 class="text-xl font-bold mb-4">Summary</h2>
-            <div id="summary-list" class="text-sm text-slate-400 space-y-2 mb-6">No seats selected</div>
-            <div class="border-t border-slate-700 pt-4 font-bold text-lg flex justify-between">
-                <span>Total</span>
-                <span id="total-price">₹0</span>
-            </div>
-            <button onclick="proceedToPayment()" class="w-full mt-6 bg-[#b8000b] py-4 rounded-xl font-bold hover:bg-red-700 transition">CONTINUE</button>
-        </div>
+    <!-- Ambient Glow -->
+    <div class="fixed inset-0 pointer-events-none z-0">
+        <div class="absolute top-0 left-1/2 -translate-x-1/2 w-[800px] h-[400px] bg-rose-600/10 blur-[140px] rounded-full"></div>
     </div>
 
-    <script>
-        const seats = [
-            { id: 'F12', price: 350, type: 'Premium' },
-            { id: 'F13', price: 350, type: 'Premium' },
-            { id: 'G12', price: 350, type: 'Premium' }
-        ];
+    <!-- Navigation Header -->
+    <header class="relative z-30 border-b border-slate-800/80 bg-[#030712]/80 backdrop-blur-xl px-6 py-4 flex items-center justify-between sticky top-0">
+        <div class="flex items-center gap-6">
+            <a href="/" class="text-2xl font-black tracking-tight text-white flex items-center gap-1">
+                <span class="text-rose-600">CINE</span>HUB
+            </a>
+            
+            <nav class="hidden md:flex items-center gap-6 text-xs font-bold uppercase tracking-wider text-slate-400">
+                <a href="/" class="hover:text-white transition">Movies</a>
+                <a href="/cinema-explorer" class="text-rose-400 hover:text-rose-300 flex items-center gap-1.5">
+                    <i class="fa-solid fa-compass text-[10px]"></i>
+                    <span>Cinemas</span>
+                </a>
+                <a href="/rewards" class="hover:text-white transition">Rewards</a>
+                <a href="/booking-history" class="hover:text-white transition">My Bookings</a>
+            </nav>
+        </div>
 
-        function renderSeats() {
-            const container = document.getElementById('seat-map');
-            container.innerHTML = seats.map(s => `
-                <div onclick="toggleSeat(this, ${s.price})" class="seat w-12 h-12 bg-slate-800 rounded-t-lg cursor-pointer flex items-center justify-center text-[10px] font-bold">
-                    ${s.id}
+        <div class="flex items-center gap-4">
+            <!-- Search Form with Clickable Submit Icon -->
+            <form action="/search" method="GET" class="relative">
+                <input name="q" 
+                       value="{{ query }}" 
+                       placeholder="Search movies, genre..." 
+                       class="bg-slate-900/90 border border-slate-800 rounded-full px-4 py-2 pl-9 pr-8 text-xs text-slate-200 focus:outline-none focus:border-rose-500 w-48 sm:w-64 transition">
+                <button type="submit" 
+                        title="Search"
+                        class="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-rose-500 text-xs transition p-1">
+                    <i class="fa-solid fa-magnifying-glass"></i>
+                </button>
+                {% if query %}
+                <a href="/" 
+                   title="Clear search" 
+                   class="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-300 text-xs">
+                    <i class="fa-solid fa-xmark"></i>
+                </a>
+                {% endif %}
+            </form>
+            <a href="/cinema-explorer" class="bg-rose-600 hover:bg-rose-500 text-white px-4 py-2 rounded-xl text-xs font-bold shadow-lg shadow-rose-950/40 transition shrink-0 hidden sm:inline-block">
+                Find Theaters
+            </a>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="relative z-10 flex-1 max-w-7xl w-full mx-auto p-6 md:p-8 space-y-8">
+        
+        <!-- Search Header Banner -->
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-slate-800/80">
+            <div>
+                <span class="text-[10px] font-black uppercase tracking-widest text-rose-500 flex items-center gap-1.5 mb-1">
+                    <i class="fa-solid fa-magnifying-glass text-[9px]"></i> Search Results
+                </span>
+                <h1 class="text-2xl sm:text-3xl font-black text-white">
+                    {% if query %}
+                        Results for "<span class="text-rose-400">{{ query }}</span>"
+                    {% else %}
+                        All Available Movies
+                    {% endif %}
+                </h1>
+                <p class="text-xs sm:text-sm text-slate-400 mt-1">
+                    Found <span class="font-bold text-white">{{ movies|length }}</span> matching title(s) in theaters now.
+                </p>
+            </div>
+            
+            <a href="/" class="text-xs bg-slate-900 hover:bg-slate-800 border border-slate-800 text-slate-300 px-4 py-2 rounded-xl font-bold transition flex items-center gap-2 self-start sm:self-auto">
+                <i class="fa-solid fa-arrow-left text-[10px]"></i>
+                <span>Back to Home</span>
+            </a>
+        </div>
+
+        {% if movies and movies|length > 0 %}
+        <!-- Movies Results Grid -->
+        <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-6">
+            {% for m in movies %}
+            <div class="bg-slate-900/60 border border-slate-800/80 rounded-2xl overflow-hidden group hover:border-slate-700 transition flex flex-col justify-between hover:-translate-y-1 duration-300">
+                <div class="relative overflow-hidden aspect-[2/3] bg-slate-950">
+                    <img src="{{ m.poster_url }}" 
+                         alt="{{ m.title }}" 
+                         class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                         onerror="this.onerror=null; this.src='https://images.unsplash.com/photo-1489599849927-2ee91cede3ba?w=500';">
+                    
+                    <!-- Rating Badge -->
+                    <div class="absolute bottom-0 inset-x-0 bg-gradient-to-t from-slate-950 via-slate-950/95 to-transparent px-3 pt-6 pb-2.5 flex items-center justify-between">
+                        <div class="flex items-center gap-1 text-xs font-bold text-rose-500">
+                            <i class="fa-solid fa-star text-[11px]"></i>
+                            <span class="text-white">{{ m.rating }}/10</span>
+                        </div>
+                        <span class="text-[10px] text-slate-400 font-medium">{{ m.duration or '2h 30m' }}</span>
+                    </div>
                 </div>
-            `).join('');
-        }
 
-        let selected = [];
-        function toggleSeat(el, price) {
-            el.classList.toggle('seat-selected');
-            // Logic to update local state and total price
-            anime({ targets: el, scale: [0.95, 1], duration: 300 });
-        }
+                <div class="p-4 space-y-2 flex-1 flex flex-col justify-between">
+                    <div>
+                        <h3 class="font-bold text-sm text-white group-hover:text-rose-400 transition truncate" title="{{ m.title }}">
+                            {{ m.title }}
+                        </h3>
+                        <p class="text-[11px] text-slate-400 truncate mt-0.5">
+                            {{ m.genre or 'Action / Drama' }}
+                        </p>
+                    </div>
+                    <a href="/pick-showtime?movie_id={{ m.movie_id }}" 
+                       class="block text-center w-full mt-3 bg-slate-800 hover:bg-rose-600 text-white font-bold py-2 rounded-xl text-xs transition shadow-md">
+                        Book Tickets
+                    </a>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
 
-        renderSeats();
-    </script>
+        {% else %}
+        <!-- Empty State -->
+        <div class="bg-slate-900/40 border border-slate-800/80 rounded-3xl p-12 text-center max-w-xl mx-auto space-y-4">
+            <div class="w-16 h-16 rounded-full bg-slate-800/80 border border-slate-700/60 flex items-center justify-center text-slate-400 text-2xl mx-auto">
+                <i class="fa-solid fa-film"></i>
+            </div>
+            <h3 class="text-lg font-bold text-white">No Movies Found</h3>
+            <p class="text-xs text-slate-400 leading-relaxed">
+                We couldn't find any current movies matching "<span class="text-slate-200 font-semibold">{{ query }}</span>". Try searching by another keyword or explore top genres below.
+            </p>
+            <div class="flex flex-wrap items-center justify-center gap-2 pt-2">
+                <a href="/search?q=Action" class="px-3 py-1.5 rounded-full bg-slate-800 hover:bg-rose-600 text-xs font-bold text-slate-300 hover:text-white transition">Action</a>
+                <a href="/search?q=Sci-Fi" class="px-3 py-1.5 rounded-full bg-slate-800 hover:bg-rose-600 text-xs font-bold text-slate-300 hover:text-white transition">Sci-Fi</a>
+                <a href="/search?q=Drama" class="px-3 py-1.5 rounded-full bg-slate-800 hover:bg-rose-600 text-xs font-bold text-slate-300 hover:text-white transition">Drama</a>
+                <a href="/search?q=Comedy" class="px-3 py-1.5 rounded-full bg-slate-800 hover:bg-rose-600 text-xs font-bold text-slate-300 hover:text-white transition">Comedy</a>
+            </div>
+            <div class="pt-4">
+                <a href="/" class="bg-rose-600 hover:bg-rose-500 text-white text-xs font-bold px-6 py-2.5 rounded-xl transition inline-block">
+                    Browse All Now Showing Movies
+                </a>
+            </div>
+        </div>
+        {% endif %}
+
+    </main>
 </body>
 </html>

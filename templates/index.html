@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="en" class="dark">
 <head>
     <meta charset="UTF-8">
@@ -33,11 +33,25 @@
         </div>
 
         <div class="flex items-center gap-4">
-            <form action="/search" method="GET" class="relative hidden sm:block">
-                <input name="q" placeholder="Search movies, genre..." class="bg-slate-900/90 border border-slate-800 rounded-full px-4 py-2 pl-9 text-xs text-slate-200 focus:outline-none focus:border-rose-500 w-56">
-                <i class="fa-solid fa-magnifying-glass absolute left-3 top-2.5 text-slate-500 text-xs"></i>
+            <!-- Search Form with Clickable Submit Icon & Live Auto-Suggest -->
+            <form action="/search" method="GET" class="relative" id="nav-search-form">
+                <input id="nav-search-input"
+                       name="q" 
+                       autocomplete="off"
+                       placeholder="Search movies, genre..." 
+                       class="bg-slate-900/90 border border-slate-800 rounded-full px-4 py-2 pl-9 pr-4 text-xs text-slate-200 focus:outline-none focus:border-rose-500 w-44 sm:w-64 transition">
+                <button type="submit" 
+                        title="Click to Search"
+                        class="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-rose-500 text-xs transition p-1 cursor-pointer">
+                    <i class="fa-solid fa-magnifying-glass"></i>
+                </button>
+
+                <!-- Live Auto-Suggest Dropdown -->
+                <div id="search-suggestions" 
+                     class="hidden absolute left-0 right-0 top-full mt-2 bg-slate-950/95 border border-slate-800 rounded-2xl shadow-2xl overflow-hidden z-50 backdrop-blur-xl divide-y divide-slate-800/60 max-h-80 overflow-y-auto">
+                </div>
             </form>
-            <a href="/cinema-explorer" class="bg-rose-600 hover:bg-rose-500 text-white px-4 py-2 rounded-xl text-xs font-bold shadow-lg shadow-rose-950/40 transition">
+            <a href="/cinema-explorer" class="bg-rose-600 hover:bg-rose-500 text-white px-4 py-2 rounded-xl text-xs font-bold shadow-lg shadow-rose-950/40 transition shrink-0 hidden sm:inline-block">
                 Find Theaters
             </a>
         </div>
@@ -59,49 +73,170 @@
             </a>
         </div>
 
-        <!-- Now Showing Movie Catalog -->
-        <div class="space-y-6">
-            <div class="flex items-center justify-between pb-2 border-b border-slate-800/60">
-                <h2 class="text-xl font-black tracking-tight text-white flex items-center gap-2">
-                    <span class="w-2 h-2 rounded-full bg-rose-500 animate-pulse"></span>
-                    <span>Now Showing in Theaters</span>
+        <!-- Recommended Movies (BookMyShow Style Carousel) -->
+        <div class="space-y-4 relative">
+            <div class="flex items-center justify-between pb-1">
+                <h2 class="text-xl sm:text-2xl font-black tracking-tight text-white flex items-center gap-2">
+                    <span>Recommended Movies</span>
                 </h2>
+                <a href="/cinema-explorer" class="text-xs sm:text-sm font-bold text-rose-500 hover:text-rose-400 flex items-center gap-1 transition">
+                    <span>See All</span>
+                    <i class="fa-solid fa-angle-right text-[11px]"></i>
+                </a>
             </div>
 
-            <div id="movie-grid" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-6">
-                <!-- Movie cards load dynamically -->
+            <!-- Carousel Container with Navigation Arrows -->
+            <div class="relative group/carousel">
+                <!-- Left Arrow -->
+                <button onclick="scrollMovieCarousel(-1)" 
+                        id="carousel-prev-btn"
+                        class="absolute -left-3 top-1/2 -translate-y-1/2 z-20 w-10 h-10 rounded-full bg-slate-950/85 hover:bg-rose-600 text-white border border-slate-700/80 shadow-2xl flex items-center justify-center transition-all opacity-0 group-hover/carousel:opacity-100 disabled:opacity-0">
+                    <i class="fa-solid fa-chevron-left text-xs"></i>
+                </button>
+
+                <!-- Movie Horizontal Cards Track -->
+                <div id="movie-grid" 
+                     class="flex gap-5 overflow-x-auto scroll-smooth pb-4 pt-1 px-1 scrollbar-none"
+                     style="scrollbar-width: none; -ms-overflow-style: none;">
+                    <!-- Movie cards load dynamically -->
+                </div>
+
+                <!-- Right Arrow (BookMyShow Circular Action) -->
+                <button onclick="scrollMovieCarousel(1)" 
+                        id="carousel-next-btn"
+                        class="absolute -right-3 top-1/2 -translate-y-1/2 z-20 w-10 h-10 rounded-full bg-slate-950/85 hover:bg-rose-600 text-white border border-slate-700/80 shadow-2xl flex items-center justify-center transition-all opacity-90 hover:opacity-100 hover:scale-105">
+                    <i class="fa-solid fa-chevron-right text-xs"></i>
+                </button>
             </div>
         </div>
     </main>
 
     <script>
+        function scrollMovieCarousel(direction) {
+            const container = document.getElementById('movie-grid');
+            const cardWidth = 240; // Card width + gap
+            container.scrollBy({ left: direction * cardWidth * 2, behavior: 'smooth' });
+        }
+
         async function loadMovies() {
             try {
                 const res = await fetch('/api/movies');
                 const movies = await res.json();
                 const grid = document.getElementById('movie-grid');
-                grid.innerHTML = movies.map(m => `
-                    <div class="bg-slate-900/60 border border-slate-800/80 rounded-2xl overflow-hidden group hover:border-slate-700 transition flex flex-col justify-between">
-                        <div class="relative overflow-hidden aspect-[2/3]">
-                            <img src="${m.poster_url}" alt="${m.title}" class="w-full h-full object-cover group-hover:scale-105 transition duration-500">
-                            <div class="absolute top-2 right-2 bg-slate-950/80 backdrop-blur-md px-2 py-0.5 rounded-lg border border-slate-800 text-[10px] font-black text-amber-400">
-                                <i class="fa-solid fa-star text-[9px] mr-0.5"></i>${m.rating}
+                
+                // Formats vote display e.g. 76.1K
+                const voteCounts = ['76.1K', '65.4K', '52.8K', '43.2K', '38.9K', '29.1K', '24.5K', '18.7K'];
+
+                grid.innerHTML = movies.map((m, idx) => {
+                    const votes = voteCounts[idx % voteCounts.length];
+                    const isUpcoming = m.rating === 0;
+
+                    return `
+                    <div class="shrink-0 w-48 sm:w-56 group cursor-pointer transition-transform duration-300 hover:-translate-y-1.5"
+                         onclick="window.location.href='/pick-showtime?movie_id=${m.movie_id}'">
+                        
+                        <!-- Poster Card with Bottom Overlay -->
+                        <div class="relative overflow-hidden aspect-[2/3] rounded-2xl border border-slate-800 shadow-xl bg-slate-900 group-hover:border-slate-700 transition">
+                            <img src="${m.poster_url}" 
+                                 alt="${m.title}" 
+                                 class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                                 onerror="this.onerror=null; this.src='https://images.unsplash.com/photo-1489599849927-2ee91cede3ba?w=500';">
+                            
+                            <!-- BookMyShow Bottom Rating / Votes Pill Bar -->
+                            <div class="absolute bottom-0 inset-x-0 bg-gradient-to-t from-slate-950 via-slate-950/95 to-transparent px-3 pt-6 pb-2.5 flex items-center justify-between">
+                                ${isUpcoming ? `
+                                    <div class="flex items-center gap-1.5 text-xs font-bold text-emerald-400">
+                                        <i class="fa-solid fa-thumbs-up text-[11px]"></i>
+                                        <span class="text-white">${votes}</span>
+                                        <span class="text-[10px] text-slate-400 font-medium">Likes</span>
+                                    </div>
+                                ` : `
+                                    <div class="flex items-center gap-1.5 text-xs font-bold text-rose-500">
+                                        <i class="fa-solid fa-star text-[11px]"></i>
+                                        <span class="text-white">${m.rating}/10</span>
+                                        <span class="text-[10px] text-slate-400 font-medium">${votes} Votes</span>
+                                    </div>
+                                `}
                             </div>
                         </div>
-                        <div class="p-4 space-y-2">
-                            <h3 class="font-bold text-sm text-white group-hover:text-rose-400 transition truncate">${m.title}</h3>
-                            <p class="text-[11px] text-slate-400">${m.genre}</p>
-                            <a href="/pick-showtime?movie_id=${m.movie_id}" class="block text-center w-full mt-2 bg-slate-800 hover:bg-rose-600 text-white font-bold py-2 rounded-xl text-xs transition">
-                                Book Tickets
-                            </a>
+
+                        <!-- Details below Poster -->
+                        <div class="pt-2.5 px-0.5 space-y-0.5">
+                            <h3 class="font-bold text-sm sm:text-base text-white group-hover:text-rose-400 transition truncate leading-snug">
+                                ${m.title}
+                            </h3>
+                            <p class="text-xs text-slate-400 font-medium truncate">
+                                ${m.genre || 'Action / Drama'}
+                            </p>
                         </div>
                     </div>
-                `).join('');
+                    `;
+                }).join('');
             } catch(e) {
                 console.error("Error loading movies:", e);
             }
         }
-        window.onload = loadMovies;
+
+        // Live Auto-Suggest Search Logic
+        function setupLiveSearch() {
+            const searchInput = document.getElementById('nav-search-input');
+            const suggestionsBox = document.getElementById('search-suggestions');
+            const searchForm = document.getElementById('nav-search-form');
+            if (!searchInput || !suggestionsBox) return;
+
+            let catalog = [];
+            fetch('/api/movies')
+                .then(r => r.json())
+                .then(data => catalog = data)
+                .catch(() => {});
+
+            searchInput.addEventListener('input', (e) => {
+                const query = e.target.value.trim().toLowerCase();
+                if (!query) {
+                    suggestionsBox.classList.add('hidden');
+                    return;
+                }
+
+                const matches = catalog.filter(m => 
+                    m.title.toLowerCase().includes(query) || (m.genre && m.genre.toLowerCase().includes(query))
+                ).slice(0, 5);
+
+                if (matches.length === 0) {
+                    suggestionsBox.innerHTML = `
+                        <div class="p-3 text-xs text-slate-400 text-center">
+                            Press <span class="text-white font-bold">Enter</span> to search for "${query}"
+                        </div>
+                    `;
+                } else {
+                    suggestionsBox.innerHTML = matches.map(m => `
+                        <a href="/pick-showtime?movie_id=${m.movie_id}" class="flex items-center gap-3 p-2.5 hover:bg-slate-900 transition text-left group">
+                            <img src="${m.poster_url}" class="w-8 h-12 object-cover rounded-md shrink-0 bg-slate-900" onerror="this.onerror=null; this.src='https://images.unsplash.com/photo-1489599849927-2ee91cede3ba?w=500';">
+                            <div class="overflow-hidden flex-1">
+                                <p class="text-xs font-bold text-white group-hover:text-rose-400 transition truncate">${m.title}</p>
+                                <p class="text-[10px] text-slate-400 truncate">${m.genre || 'Cinema'} • ★ ${m.rating}</p>
+                            </div>
+                        </a>
+                    `).join('') + `
+                        <a href="/search?q=${encodeURIComponent(query)}" class="block p-2 text-center text-[11px] font-bold text-rose-500 hover:bg-slate-900 transition border-t border-slate-800/80">
+                            See all results for "${query}" →
+                        </a>
+                    `;
+                }
+                suggestionsBox.classList.remove('hidden');
+            });
+
+            // Close on outside click
+            document.addEventListener('click', (e) => {
+                if (!searchForm.contains(e.target)) {
+                    suggestionsBox.classList.add('hidden');
+                }
+            });
+        }
+
+        window.onload = () => {
+            loadMovies();
+            setupLiveSearch();
+        };
     </script>
 </body>
 </html>

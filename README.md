@@ -25,11 +25,16 @@
 
 ```
 movie app/
-├── app.py                  # Flask app — routes, API endpoints, DB init
+├── app.py                  # Flask app — routes, API endpoints, scheduler, DB init
+├── migrate_db.py           # Database migration script (schema updates & backfill)
 ├── init_db.py              # Standalone DB initializer (extended schema)
 ├── cinematic_pulse.db      # SQLite database (auto-generated)
 ├── package.json            # Node dependencies (anime.js)
 ├── .gitignore
+│
+├── services/
+│   ├── __init__.py
+│   └── movie_sync.py       # TMDb API sync & automated lifecycle cleanup
 │
 ├── static/
 │   ├── style.css           # Base stylesheet (dark theme)
@@ -63,6 +68,8 @@ movie app/
 |---|---|---|
 | **Python** | 3.x | Runtime |
 | **Flask** | 3.1.3 | Web framework |
+| **Flask-APScheduler** | 1.13.1 | Background cron & interval automation |
+| **Requests** | 2.34.2 | TMDb API integration |
 | **Flask-CORS** | 6.0.5 | Cross-origin API support |
 | **SQLite3** | built-in | Relational database |
 | **Werkzeug** | 3.1.8 | WSGI utilities |
@@ -200,6 +207,14 @@ All API endpoints return **JSON** and support CORS.
 | `POST` | `/api/bookings` | Create a booking |
 | `GET` | `/api/users/<id>/bookings` | Get all bookings for a user |
 | `GET` | `/api/users/<id>/rewards` | Get user reward points & tier |
+
+### Catalog Automation & Admin
+
+| Method | Endpoint | Description |
+|---|---|---|
+| `POST` | `/api/admin/sync-movies` | Manually trigger TMDb now-playing sync & showtime generation |
+| `POST` | `/api/admin/archive-shows` | Manually trigger expired showtime & zero-show movie archival |
+| `GET` | `/api/admin/catalog-status` | Overview of active vs archived movies, showtimes, and scheduler state |
 
 #### `POST /api/bookings` — Request Body
 
